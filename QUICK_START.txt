@@ -1,0 +1,96 @@
+═══════════════════════════════════════════════════════════════
+    🤖 ARBITRUM ARBITRAGE BOT - QUICK START GUIDE
+═══════════════════════════════════════════════════════════════
+
+✅ YOUR BOT IS READY TO RUN!
+
+Your Telegram credentials are already configured:
+  • Bot Token: 7990738699:AAFfoPA4VGO_90DyQauHNiwbHnfwOTmfbgU
+  • Chat ID: 8305086804
+
+═══════════════════════════════════════════════════════════════
+  🚀 START THE BOT
+═══════════════════════════════════════════════════════════════
+
+Option 1 - Simple start:
+  npm start
+
+Option 2 - Using the launcher script:
+  ./run-bot.sh
+
+═══════════════════════════════════════════════════════════════
+  📱 WHAT TO EXPECT
+═══════════════════════════════════════════════════════════════
+
+1. STARTUP MESSAGE
+   You'll immediately receive a Telegram message confirming the bot started.
+
+2. FIRST SCAN (within 1 minute)
+   The bot will scan all DEXs and send results to your Telegram.
+
+3. ONGOING SCANS (every 3 minutes)
+   You'll receive updates with:
+   - 💎 Real-time WETH prices across all DEXs
+   - 🎯 Direct arbitrage opportunities
+   - 🔺 Triangular arbitrage opportunities
+
+═══════════════════════════════════════════════════════════════
+  ⚙️ CUSTOMIZATION (Optional)
+═══════════════════════════════════════════════════════════════
+
+Edit .env file to change:
+
+SCAN_INTERVAL=180000       # Scan every 3 minutes (default)
+                          # Change to 60000 for 1 minute
+                          # Change to 300000 for 5 minutes
+
+MIN_PROFIT_PERCENTAGE=0.5  # Minimum profit to alert
+                          # Lower = more alerts
+                          # Higher = fewer, better opportunities
+
+═══════════════════════════════════════════════════════════════
+  🛑 STOPPING THE BOT
+═══════════════════════════════════════════════════════════════
+
+Press: Ctrl+C
+
+The bot will shut down gracefully.
+
+═══════════════════════════════════════════════════════════════
+  📚 MORE INFORMATION
+═══════════════════════════════════════════════════════════════
+
+README.md         - Complete documentation
+START_BOT.md      - Detailed startup guide  
+FEATURES.md       - Full feature list and capabilities
+
+═══════════════════════════════════════════════════════════════
+  🎯 MONITORED ASSETS
+═══════════════════════════════════════════════════════════════
+
+Primary Tokens (Flash Loan Ready):
+  • WETH (Wrapped Ethereum)
+  • ARB (Arbitrum)
+  • USDC (USD Coin)
+  • USDT (Tether)
+  • DAI (Dai Stablecoin)
+  • LINK (Chainlink)
+  • MAGIC (Treasure)
+  • WBTC (Wrapped Bitcoin)
+  • RDNT (Radiant Capital)
+  • GMX (GMX Protocol)
+
+DEXs Monitored:
+  • Uniswap V3 (3 fee tiers)
+  • Sushiswap
+  • Camelot
+
+═══════════════════════════════════════════════════════════════
+  ⚡ READY TO GO!
+═══════════════════════════════════════════════════════════════
+
+Just run: npm start
+
+Happy trading! 🚀
+
+═══════════════════════════════════════════════════════════════

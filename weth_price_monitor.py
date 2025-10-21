@@ -230,10 +230,6 @@ def fetch_all_weth_prices() -> Dict[str, float]:
         prices['Camelot'] = price
         print(f"📊 Camelot: ${price:,.2f}")
     
-    # Add reference price if available
-    if reference_price:
-        prices['CoinGecko (Reference)'] = reference_price
-    
     return prices
 
 
@@ -267,49 +263,53 @@ def format_telegram_message(prices: Dict[str, float], opportunities: List[Tuple]
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     
     message = f"🚨 <b>WETH Price Alert - Arbitrum</b> 🚨\n"
-    message += f"⏰ {timestamp}\n"
+    message += f"⏰ {timestamp} UTC\n"
     message += f"{'='*35}\n\n"
     
     if not prices:
-        message += "❌ No prices available\n"
+        message += "❌ No valid prices available\n"
         return message
     
     # Price listing
-    message += "<b>💰 Current WETH Prices:</b>\n"
+    message += "<b>💰 WETH Prices (Validated):</b>\n"
     for dex, price in sorted(prices.items(), key=lambda x: x[1], reverse=True):
         message += f"  • {dex}: ${price:,.2f}\n"
     
-    # Calculate average
+    # Calculate statistics
     avg_price = sum(prices.values()) / len(prices)
     min_price = min(prices.values())
     max_price = max(prices.values())
+    price_range_pct = ((max_price - min_price) / min_price * 100)
     
-    message += f"\n<b>📈 Statistics:</b>\n"
+    message += f"\n<b>📈 Market Statistics:</b>\n"
     message += f"  • Average: ${avg_price:,.2f}\n"
     message += f"  • Highest: ${max_price:,.2f}\n"
     message += f"  • Lowest: ${min_price:,.2f}\n"
-    message += f"  • Range: ${max_price - min_price:,.2f} ({((max_price-min_price)/min_price*100):.2f}%)\n"
+    message += f"  • Spread: ${max_price - min_price:,.2f} ({price_range_pct:.2f}%)\n"
     
     # Arbitrage opportunities (only show if spread > 0.1%)
     profitable_opps = [opp for opp in opportunities if opp[4] > 0.1]
     
     if profitable_opps:
         message += f"\n<b>⚡ Arbitrage Opportunities:</b>\n"
-        for i, (buy_dex, sell_dex, sell_price, buy_price, spread) in enumerate(profitable_opps[:5], 1):
-            # Add warning emoji for very high spreads (might indicate stale price)
-            warning = " ⚠️" if spread > 5 else ""
-            message += f"\n{i}. <b>{spread:.3f}%</b>{warning}\n"
-            message += f"   Buy: {buy_dex} @ ${buy_price:,.2f}\n"
-            message += f"   Sell: {sell_dex} @ ${sell_price:,.2f}\n"
-            message += f"   Profit: ${sell_price - buy_price:,.2f} per WETH\n"
+        for i, (buy_dex, sell_dex, sell_price, buy_price, spread) in enumerate(profitable_opps[:3], 1):
+            # Add warning emoji for very high spreads (might indicate low liquidity)
+            warning = " ⚠️ High spread!" if spread > 3 else ""
+            profit_per_weth = sell_price - buy_price
+            message += f"\n<b>#{i} - {spread:.3f}% Spread</b>{warning}\n"
+            message += f"  📥 Buy: {buy_dex}\n"
+            message += f"     Price: ${buy_price:,.2f}\n"
+            message += f"  📤 Sell: {sell_dex}\n"
+            message += f"     Price: ${sell_price:,.2f}\n"
+            message += f"  💰 Profit: <b>${profit_per_weth:,.2f}</b> per WETH\n"
     else:
         message += f"\n<b>⚡ Arbitrage Status:</b>\n"
-        message += f"  • No significant spreads (>0.1%)\n"
-        message += f"  • Markets are efficient ✅\n"
+        message += f"  ✅ No significant spreads found\n"
+        message += f"  📊 Market prices are aligned (${price_range_pct:.2f}% max spread)\n"
     
     message += f"\n{'='*35}\n"
-    message += "🤖 Monitoring every 3 minutes\n"
-    message += "📊 All prices validated"
+    message += f"✅ All prices validated\n"
+    message += f"🔄 Next update in 3 minutes"
     
     return message
 

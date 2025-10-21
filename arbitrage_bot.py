@@ -170,6 +170,11 @@ class ArbitrageScanner:
             reserves = pair_contract.functions.getReserves().call()
             token0 = pair_contract.functions.token0().call()
             
+            # VALIDATION: Check reserves are not zero
+            if reserves[0] == 0 or reserves[1] == 0:
+                logger.debug(f"Zero reserves for {dex_name} {token_a}/{token_b}")
+                return None
+            
             decimals_a = self.get_token_decimals(token_a)
             decimals_b = self.get_token_decimals(token_b)
             
@@ -180,10 +185,22 @@ class ArbitrageScanner:
                 reserve_a = reserves[1] / (10 ** decimals_a)
                 reserve_b = reserves[0] / (10 ** decimals_b)
             
-            if reserve_a == 0:
+            # VALIDATION: Check reserves are reasonable
+            if reserve_a <= 0 or reserve_b <= 0:
+                return None
+            
+            # VALIDATION: Check minimum liquidity (avoid low-liquidity pools)
+            if reserve_a < 0.01 or reserve_b < 0.01:
+                logger.debug(f"Low liquidity for {dex_name} {token_a}/{token_b}")
                 return None
             
             price = reserve_b / reserve_a
+            
+            # VALIDATION: Check price is reasonable (not infinity, not zero)
+            if price <= 0 or price > 1e15:
+                logger.warning(f"Unrealistic price from {dex_name}: {price}")
+                return None
+            
             return price
             
         except Exception as e:
@@ -258,20 +275,34 @@ class ArbitrageScanner:
         
         prices = {}
         
-        # Uniswap V3
+        # Uniswap V3 - MOST RELIABLE
         price = self.get_uniswap_v3_price(token_a, token_b)
-        if price:
+        if price and price > 0 and price < 1e15:
             prices['Uniswap_V3'] = price
         
-        # Sushiswap
+        # Sushiswap - RELIABLE
         price = self.get_uniswap_v2_price('Sushiswap', token_a, token_b)
-        if price:
+        if price and price > 0 and price < 1e15:
             prices['Sushiswap'] = price
         
-        # Camelot
-        price = self.get_uniswap_v2_price('Camelot', token_a, token_b)
-        if price:
-            prices['Camelot'] = price
+        # Camelot - SKIP FOR NOW (bad data)
+        # Only use Camelot for very specific safe pairs
+        safe_camelot_pairs = [
+            ('WETH', 'USDC'),
+            ('WETH', 'USDT'),
+            ('ARB', 'USDC'),
+            ('ARB', 'USDT'),
+        ]
+        
+        if (token_a_name, token_b_name) in safe_camelot_pairs or (token_b_name, token_a_name) in safe_camelot_pairs:
+            price = self.get_uniswap_v2_price('Camelot', token_a, token_b)
+            if price and price > 0 and price < 1e15:
+                # Extra validation for Camelot
+                if len(prices) > 0:
+                    avg_price = sum(prices.values()) / len(prices)
+                    # Only accept if within 30% of average
+                    if abs(price - avg_price) / avg_price < 0.3:
+                        prices['Camelot'] = price
         
         return prices
     
@@ -321,10 +352,38 @@ class ArbitrageScanner:
             'roi_pct': roi_pct
         }
     
+    def validate_price_sanity(self, token_a_name: str, token_b_name: str, prices: Dict[str, float]) -> Dict[str, float]:
+        """Validate prices are reasonable and filter out bad data"""
+        if len(prices) < 2:
+            return prices
+        
+        # Calculate median price
+        price_values = list(prices.values())
+        price_values.sort()
+        median_price = price_values[len(price_values) // 2]
+        
+        # Filter out prices that are more than 50% away from median
+        # This removes obviously wrong Camelot prices
+        valid_prices = {}
+        for dex, price in prices.items():
+            deviation = abs(price - median_price) / median_price
+            if deviation < 0.5:  # Within 50% of median
+                valid_prices[dex] = price
+            else:
+                logger.warning(f"Filtering out bad price: {dex} {token_a_name}/{token_b_name} = {price} (median={median_price})")
+        
+        return valid_prices
+    
     def find_direct_arbitrage(self, token_a_name: str, token_b_name: str) -> List[Dict]:
         """Find direct arbitrage opportunities for a token pair"""
         opportunities = []
         prices = self.get_all_prices(token_a_name, token_b_name)
+        
+        if len(prices) < 2:
+            return opportunities
+        
+        # VALIDATION: Filter out unrealistic prices
+        prices = self.validate_price_sanity(token_a_name, token_b_name, prices)
         
         if len(prices) < 2:
             return opportunities
@@ -337,6 +396,16 @@ class ArbitrageScanner:
                 dex1, price1 = dex_list[i]
                 dex2, price2 = dex_list[j]
                 
+                # VALIDATION: Check for zero or negative prices
+                if price1 <= 0 or price2 <= 0:
+                    continue
+                
+                # VALIDATION: Check price ratio is reasonable (within 20x)
+                price_ratio = max(price1, price2) / min(price1, price2)
+                if price_ratio > 20:  # Prices shouldn't differ by more than 20x
+                    logger.warning(f"Skipping unrealistic price ratio: {price_ratio:.2f}x for {token_a_name}/{token_b_name}")
+                    continue
+                
                 # Calculate spread percentage
                 if price1 < price2:
                     buy_dex, buy_price = dex1, price1
@@ -347,8 +416,8 @@ class ArbitrageScanner:
                 
                 spread_pct = ((sell_price - buy_price) / buy_price) * 100
                 
-                # Consider profitable if spread > 0.3% (to account for gas fees)
-                if spread_pct > 0.3:
+                # VALIDATION: Realistic spread range (0.3% to 20%)
+                if spread_pct > 0.3 and spread_pct < 20:
                     # Calculate profit for $50k trade
                     profit_calc = self.calculate_profit(spread_pct, 50000)
                     
@@ -394,8 +463,9 @@ class ArbitrageScanner:
                 final_amount_1 = 1.0 * price_ab * price_bc * price_ca
                 profit_pct_1 = (final_amount_1 - 1.0) * 100
                 
-                # Filter out unrealistic profits (calculation errors)
-                if profit_pct_1 > 0.5 and profit_pct_1 < 50:  # Realistic range: 0.5% to 50%
+                # VALIDATION: Filter out unrealistic profits (calculation errors)
+                # Real triangular arbitrage is typically 0.5% to 5%
+                if profit_pct_1 > 0.5 and profit_pct_1 < 5:  # Realistic range
                     # Calculate profit for $50k trade
                     profit_calc = self.calculate_profit(profit_pct_1, 50000)
                     
@@ -423,8 +493,9 @@ class ArbitrageScanner:
                     final_amount_2 = 1.0 * price_ac * price_cb * price_ba
                     profit_pct_2 = (final_amount_2 - 1.0) * 100
                     
-                    # Filter out unrealistic profits (calculation errors)
-                    if profit_pct_2 > 0.5 and profit_pct_2 < 50:  # Realistic range: 0.5% to 50%
+                    # VALIDATION: Filter out unrealistic profits (calculation errors)
+                    # Real triangular arbitrage is typically 0.5% to 5%
+                    if profit_pct_2 > 0.5 and profit_pct_2 < 5:  # Realistic range
                         # Calculate profit for $50k trade
                         profit_calc = self.calculate_profit(profit_pct_2, 50000)
                         
@@ -514,31 +585,24 @@ class ArbitrageScanner:
         
         all_opportunities = []
         
-        # Major trading pairs for direct arbitrage (expanded)
+        # Major trading pairs for direct arbitrage (SAFE PAIRS ONLY)
+        # Removed risky pairs that show fake opportunities
         pairs = [
-            # WETH pairs (most liquid)
+            # WETH pairs (most liquid) - ONLY USE UNISWAP V3 AND SUSHISWAP
             ('WETH', 'USDC'),
             ('WETH', 'ARB'),
             ('WETH', 'USDT'),
-            ('WETH', 'LINK'),
-            ('WETH', 'MAGIC'),
-            ('WETH', 'DAI'),
             
-            # ARB pairs
+            # ARB pairs - SAFE
             ('ARB', 'USDC'),
             ('ARB', 'USDT'),
-            ('ARB', 'DAI'),
             
-            # Stablecoin pairs
+            # Stablecoin pairs - SAFE  
             ('USDC', 'USDT'),
             ('USDC', 'DAI'),
-            ('USDT', 'DAI'),
             
-            # Other pairs
-            ('LINK', 'USDC'),
-            ('MAGIC', 'USDC'),
-            ('LINK', 'ARB'),
-            ('MAGIC', 'ARB'),
+            # Note: LINK and MAGIC removed from direct arbitrage
+            # Camelot has bad data for these pairs
         ]
         
         # Scan direct arbitrage

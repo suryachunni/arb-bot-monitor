@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  weth-monitor:
+    build: .
+    container_name: weth-price-monitor
+    restart: unless-stopped
+    environment:
+      - ALCHEMY_RPC_URL=${ALCHEMY_RPC_URL}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - INTERVAL_SECONDS=${INTERVAL_SECONDS}
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/app/logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

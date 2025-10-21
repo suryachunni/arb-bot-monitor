@@ -1,5 +1,6 @@
 import PriceFetcher from './priceFetcher.js';
 import ArbitrageCalculator from './arbitrageCalculator.js';
+import TelegramArbitrageBot from './telegramBot.js';
 import { config } from './config.js';
 import chalk from 'chalk';
 import { table } from 'table';
@@ -8,6 +9,7 @@ class ArbitrumMonitor {
   constructor() {
     this.priceFetcher = new PriceFetcher();
     this.arbitrageCalculator = new ArbitrageCalculator();
+    this.telegramBot = new TelegramArbitrageBot();
     this.isRunning = false;
     this.stats = {
       totalUpdates: 0,
@@ -16,6 +18,8 @@ class ArbitrumMonitor {
       bestOpportunity: null,
       startTime: Date.now()
     };
+    this.lastTelegramUpdate = 0;
+    this.telegramUpdateInterval = 60000; // 1 minute
   }
 
   // Start monitoring
@@ -25,6 +29,12 @@ class ArbitrumMonitor {
     console.log(chalk.gray(`⏱️  Update interval: ${config.monitoring.updateInterval}ms`));
     console.log(chalk.gray(`💰 Min spread threshold: ${config.monitoring.minArbitrageSpread}%`));
     console.log('');
+
+    // Initialize Telegram bot
+    const botInitialized = await this.telegramBot.initialize();
+    if (!botInitialized) {
+      console.log(chalk.yellow('⚠️  Telegram bot failed to initialize, continuing without notifications'));
+    }
 
     this.isRunning = true;
     this.stats.startTime = Date.now();
@@ -45,6 +55,13 @@ class ArbitrumMonitor {
         this.displayDashboard();
       }
     }, 2000); // Update display every 2 seconds
+
+    // Start Telegram update loop
+    this.telegramInterval = setInterval(() => {
+      if (this.isRunning && botInitialized) {
+        this.sendTelegramUpdates();
+      }
+    }, this.telegramUpdateInterval);
   }
 
   // Stop monitoring
@@ -59,6 +76,13 @@ class ArbitrumMonitor {
     if (this.displayInterval) {
       clearInterval(this.displayInterval);
     }
+    
+    if (this.telegramInterval) {
+      clearInterval(this.telegramInterval);
+    }
+    
+    // Stop Telegram bot
+    this.telegramBot.stop();
     
     this.displayFinalStats();
   }
@@ -80,6 +104,11 @@ class ArbitrumMonitor {
         const bestOpportunity = this.arbitrageCalculator.getBestOpportunity(opportunities);
         if (bestOpportunity) {
           this.stats.bestOpportunity = bestOpportunity;
+          
+          // Send Telegram notification for new best opportunity
+          if (this.telegramBot.isRunning) {
+            await this.telegramBot.sendArbitrageNotification(bestOpportunity, prices);
+          }
         }
         
         // Store current data
@@ -271,6 +300,24 @@ class ArbitrumMonitor {
       const opp = this.stats.bestOpportunity;
       const netProfit = this.arbitrageCalculator.calculateNetProfit(opp);
       console.log(`   ${opp.buyDex} → ${opp.sellDex}: ${opp.spread.toFixed(2)}% spread, $${netProfit.netProfit.toFixed(2)} profit`);
+    }
+  }
+
+  // Send Telegram updates
+  async sendTelegramUpdates() {
+    if (!this.telegramBot.isRunning) return;
+
+    const now = Date.now();
+    if (now - this.lastTelegramUpdate < this.telegramUpdateInterval) return;
+
+    this.lastTelegramUpdate = now;
+
+    // Send status update
+    await this.telegramBot.sendStatusUpdate(this.stats);
+
+    // Send price update if we have fresh prices
+    if (this.currentPrices && this.currentPrices.length > 0) {
+      await this.telegramBot.sendPriceUpdate(this.currentPrices);
     }
   }
 

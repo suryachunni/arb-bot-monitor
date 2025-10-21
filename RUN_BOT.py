@@ -139,10 +139,12 @@ class ArbitrageBotWithButtons:
         app = Application.builder().token(TELEGRAM_TOKEN).build()
         app.add_handler(CallbackQueryHandler(self.handle_button))
         
+        # Start monitoring task
         async def post_init(application):
-            application.create_task(self.start_monitoring(application))
+            asyncio.create_task(self.start_monitoring(application))
         
-        app.run_polling(post_init=post_init)
+        app.post_init = post_init
+        app.run_polling()
 
 if __name__ == "__main__":
     print("\n" + "="*70)

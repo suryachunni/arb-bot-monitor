@@ -275,6 +275,52 @@ class ArbitrageScanner:
         
         return prices
     
+    def calculate_profit(self, spread_pct: float, trade_size: float = 50000) -> Dict:
+        """
+        Calculate estimated profit for a trade with all costs
+        
+        Args:
+            spread_pct: Spread percentage
+            trade_size: Trade size in USD (default $50k)
+        
+        Returns:
+            Dict with profit breakdown
+        """
+        # Gross profit from spread
+        gross_profit = trade_size * (spread_pct / 100)
+        
+        # Costs
+        flash_loan_fee_pct = 0.09  # Aave flash loan fee 0.09%
+        flash_loan_fee = trade_size * (flash_loan_fee_pct / 100)
+        
+        # Arbitrum gas costs (very cheap!)
+        # Typical flash loan arb: ~500k gas at 0.1 gwei = $0.05-2
+        estimated_gas = 1.50  # Conservative estimate for Arbitrum
+        
+        # Slippage (0.1% conservative)
+        slippage_pct = 0.1
+        slippage_cost = trade_size * (slippage_pct / 100)
+        
+        # Total costs
+        total_costs = flash_loan_fee + estimated_gas + slippage_cost
+        
+        # Net profit
+        net_profit = gross_profit - total_costs
+        
+        # ROI (on flash loan amount)
+        roi_pct = (net_profit / trade_size) * 100
+        
+        return {
+            'trade_size': trade_size,
+            'gross_profit': gross_profit,
+            'flash_loan_fee': flash_loan_fee,
+            'gas_cost': estimated_gas,
+            'slippage_cost': slippage_cost,
+            'total_costs': total_costs,
+            'net_profit': net_profit,
+            'roi_pct': roi_pct
+        }
+    
     def find_direct_arbitrage(self, token_a_name: str, token_b_name: str) -> List[Dict]:
         """Find direct arbitrage opportunities for a token pair"""
         opportunities = []
@@ -303,6 +349,9 @@ class ArbitrageScanner:
                 
                 # Consider profitable if spread > 0.3% (to account for gas fees)
                 if spread_pct > 0.3:
+                    # Calculate profit for $50k trade
+                    profit_calc = self.calculate_profit(spread_pct, 50000)
+                    
                     opportunities.append({
                         'type': 'direct',
                         'pair': f"{token_a_name}/{token_b_name}",
@@ -311,13 +360,14 @@ class ArbitrageScanner:
                         'buy_price': buy_price,
                         'sell_price': sell_price,
                         'spread_pct': spread_pct,
+                        'profit': profit_calc,
                         'timestamp': datetime.now().isoformat()
                     })
         
         return opportunities
     
     def find_triangular_arbitrage(self, token_a: str, token_b: str, token_c: str) -> List[Dict]:
-        """Find triangular arbitrage opportunities"""
+        """Find triangular arbitrage opportunities in both directions"""
         opportunities = []
         
         # Get prices for all three pairs on each DEX
@@ -345,20 +395,25 @@ class ArbitrageScanner:
                 profit_pct_1 = (final_amount_1 - 1.0) * 100
                 
                 if profit_pct_1 > 0.5:  # Minimum 0.5% profit
+                    # Calculate profit for $50k trade
+                    profit_calc = self.calculate_profit(profit_pct_1, 50000)
+                    
                     opportunities.append({
                         'type': 'triangular',
+                        'direction': 'forward',
                         'dex': dex_name,
-                        'path': f"{token_a} -> {token_b} -> {token_c} -> {token_a}",
+                        'path': f"{token_a} → {token_b} → {token_c} → {token_a}",
                         'prices': {
                             f"{token_a}/{token_b}": price_ab,
                             f"{token_b}/{token_c}": price_bc,
                             f"{token_c}/{token_a}": price_ca
                         },
                         'profit_pct': profit_pct_1,
+                        'profit': profit_calc,
                         'timestamp': datetime.now().isoformat()
                     })
                 
-                # Direction 2: A -> C -> B -> A
+                # Direction 2: A -> C -> B -> A (REVERSE)
                 price_ac = 1 / price_ca if price_ca else None
                 price_cb = 1 / price_bc if price_bc else None
                 price_ba = 1 / price_ab if price_ab else None
@@ -368,16 +423,21 @@ class ArbitrageScanner:
                     profit_pct_2 = (final_amount_2 - 1.0) * 100
                     
                     if profit_pct_2 > 0.5:
+                        # Calculate profit for $50k trade
+                        profit_calc = self.calculate_profit(profit_pct_2, 50000)
+                        
                         opportunities.append({
                             'type': 'triangular',
+                            'direction': 'reverse',
                             'dex': dex_name,
-                            'path': f"{token_a} -> {token_c} -> {token_b} -> {token_a}",
+                            'path': f"{token_a} → {token_c} → {token_b} → {token_a}",
                             'prices': {
                                 f"{token_a}/{token_c}": price_ac,
                                 f"{token_c}/{token_b}": price_cb,
                                 f"{token_b}/{token_a}": price_ba
                             },
                             'profit_pct': profit_pct_2,
+                            'profit': profit_calc,
                             'timestamp': datetime.now().isoformat()
                         })
                 
@@ -405,36 +465,69 @@ class ArbitrageScanner:
             logger.error(f"Error sending Telegram message: {e}")
     
     def format_opportunity_message(self, opportunities: List[Dict]) -> str:
-        """Format arbitrage opportunities for Telegram"""
+        """Format arbitrage opportunities for Telegram with profit details"""
         if not opportunities:
             return None
         
         message = f"🚨 <b>ARBITRAGE OPPORTUNITIES DETECTED</b> 🚨\n"
         message += f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}\n"
-        message += f"🔗 Network: Arbitrum Mainnet\n\n"
+        message += f"🔗 Network: Arbitrum Mainnet\n"
+        message += f"💵 Flash Loan Size: <b>$50,000</b>\n\n"
         
         # Direct arbitrage
         direct_opps = [opp for opp in opportunities if opp['type'] == 'direct']
         if direct_opps:
-            message += "📊 <b>DIRECT ARBITRAGE:</b>\n"
-            for opp in sorted(direct_opps, key=lambda x: x['spread_pct'], reverse=True)[:5]:
-                message += f"\n💰 Pair: <b>{opp['pair']}</b>\n"
-                message += f"  📈 Buy: {opp['buy_dex']} @ {opp['buy_price']:.8f}\n"
-                message += f"  📉 Sell: {opp['sell_dex']} @ {opp['sell_price']:.8f}\n"
-                message += f"  💵 Spread: <b>{opp['spread_pct']:.4f}%</b>\n"
-                message += f"  ⚡ Flash Loan: Available\n"
+            message += "📊 <b>DIRECT ARBITRAGE OPPORTUNITIES:</b>\n"
+            message += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            
+            for idx, opp in enumerate(sorted(direct_opps, key=lambda x: x['profit']['net_profit'], reverse=True)[:5], 1):
+                profit = opp['profit']
+                message += f"\n<b>#{idx} - {opp['pair']}</b>\n"
+                message += f"  📈 Buy:  {opp['buy_dex']} @ ${opp['buy_price']:.6f}\n"
+                message += f"  📉 Sell: {opp['sell_dex']} @ ${opp['sell_price']:.6f}\n"
+                message += f"  📊 Spread: <b>{opp['spread_pct']:.4f}%</b>\n\n"
+                
+                message += f"  💰 <b>PROFIT BREAKDOWN ($50k):</b>\n"
+                message += f"     Gross Profit:    ${profit['gross_profit']:,.2f}\n"
+                message += f"     Flash Loan Fee:  -${profit['flash_loan_fee']:,.2f} (0.09%)\n"
+                message += f"     Gas Cost:        -${profit['gas_cost']:,.2f}\n"
+                message += f"     Slippage (0.1%): -${profit['slippage_cost']:,.2f}\n"
+                message += f"     ──────────────────────\n"
+                message += f"     <b>NET PROFIT:      ${profit['net_profit']:,.2f}</b>\n"
+                message += f"     <b>ROI:             {profit['roi_pct']:.3f}%</b>\n"
+                message += f"  ⚡ Flash Loan: Aave/Balancer\n"
         
         # Triangular arbitrage
         triangular_opps = [opp for opp in opportunities if opp['type'] == 'triangular']
         if triangular_opps:
-            message += "\n\n🔺 <b>TRIANGULAR ARBITRAGE:</b>\n"
-            for opp in sorted(triangular_opps, key=lambda x: x['profit_pct'], reverse=True)[:5]:
-                message += f"\n🔄 Path: <b>{opp['path']}</b>\n"
-                message += f"  🏦 DEX: {opp['dex']}\n"
-                for pair, price in opp['prices'].items():
-                    message += f"  • {pair}: {price:.8f}\n"
-                message += f"  💰 Profit: <b>{opp['profit_pct']:.4f}%</b>\n"
-                message += f"  ⚡ Flash Loan: Available\n"
+            message += "\n\n🔺 <b>TRIANGULAR ARBITRAGE OPPORTUNITIES:</b>\n"
+            message += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            
+            for idx, opp in enumerate(sorted(triangular_opps, key=lambda x: x['profit']['net_profit'], reverse=True)[:5], 1):
+                profit = opp['profit']
+                message += f"\n<b>#{idx} - {opp['dex']} ({opp['direction'].upper()})</b>\n"
+                message += f"  🔄 Path: <b>{opp['path']}</b>\n"
+                message += f"  📊 Route Prices:\n"
+                for pair, price in list(opp['prices'].items())[:3]:
+                    message += f"     • {pair}: {price:.8f}\n"
+                message += f"  📈 Profit: <b>{opp['profit_pct']:.4f}%</b>\n\n"
+                
+                message += f"  💰 <b>PROFIT BREAKDOWN ($50k):</b>\n"
+                message += f"     Gross Profit:    ${profit['gross_profit']:,.2f}\n"
+                message += f"     Flash Loan Fee:  -${profit['flash_loan_fee']:,.2f} (0.09%)\n"
+                message += f"     Gas Cost:        -${profit['gas_cost']:,.2f}\n"
+                message += f"     Slippage (0.1%): -${profit['slippage_cost']:,.2f}\n"
+                message += f"     ──────────────────────\n"
+                message += f"     <b>NET PROFIT:      ${profit['net_profit']:,.2f}</b>\n"
+                message += f"     <b>ROI:             {profit['roi_pct']:.3f}%</b>\n"
+                message += f"  ⚡ Flash Loan: Aave/Balancer\n"
+        
+        # Summary
+        total_net_profit = sum(opp['profit']['net_profit'] for opp in opportunities)
+        message += f"\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        message += f"📈 <b>TOTAL OPPORTUNITIES: {len(opportunities)}</b>\n"
+        message += f"💵 <b>COMBINED NET PROFIT: ${total_net_profit:,.2f}</b>\n"
+        message += f"⚡ All opportunities are flash loan ready!\n"
         
         return message
     
@@ -444,16 +537,31 @@ class ArbitrageScanner:
         
         all_opportunities = []
         
-        # Major trading pairs for direct arbitrage
+        # Major trading pairs for direct arbitrage (expanded)
         pairs = [
+            # WETH pairs (most liquid)
             ('WETH', 'USDC'),
             ('WETH', 'ARB'),
             ('WETH', 'USDT'),
+            ('WETH', 'LINK'),
+            ('WETH', 'MAGIC'),
+            ('WETH', 'DAI'),
+            
+            # ARB pairs
             ('ARB', 'USDC'),
-            ('LINK', 'WETH'),
-            ('MAGIC', 'WETH'),
+            ('ARB', 'USDT'),
+            ('ARB', 'DAI'),
+            
+            # Stablecoin pairs
+            ('USDC', 'USDT'),
+            ('USDC', 'DAI'),
+            ('USDT', 'DAI'),
+            
+            # Other pairs
             ('LINK', 'USDC'),
             ('MAGIC', 'USDC'),
+            ('LINK', 'ARB'),
+            ('MAGIC', 'ARB'),
         ]
         
         # Scan direct arbitrage
@@ -461,42 +569,66 @@ class ArbitrageScanner:
             try:
                 opps = self.find_direct_arbitrage(token_a, token_b)
                 all_opportunities.extend(opps)
-                logger.info(f"Scanned {token_a}/{token_b}: {len(opps)} opportunities")
+                if opps:
+                    logger.info(f"Scanned {token_a}/{token_b}: {len(opps)} opportunities (Best: ${opps[0]['profit']['net_profit']:.2f})")
+                else:
+                    logger.debug(f"Scanned {token_a}/{token_b}: 0 opportunities")
             except Exception as e:
-                logger.error(f"Error scanning {token_a}/{token_b}: {e}")
+                logger.debug(f"Error scanning {token_a}/{token_b}: {e}")
         
-        # Triangular arbitrage paths
+        # Triangular arbitrage paths (both directions tested)
         triangular_paths = [
+            # WETH base triangles
             ('WETH', 'USDC', 'ARB'),
+            ('WETH', 'USDC', 'LINK'),
+            ('WETH', 'USDC', 'MAGIC'),
             ('WETH', 'ARB', 'USDT'),
+            ('WETH', 'ARB', 'USDC'),
             ('WETH', 'LINK', 'USDC'),
             ('WETH', 'MAGIC', 'USDC'),
+            
+            # ARB base triangles
             ('ARB', 'USDC', 'USDT'),
+            ('ARB', 'USDC', 'DAI'),
+            ('ARB', 'WETH', 'USDC'),
+            
+            # Stablecoin triangles
+            ('USDC', 'USDT', 'DAI'),
+            ('USDC', 'WETH', 'ARB'),
         ]
         
-        # Scan triangular arbitrage
+        # Scan triangular arbitrage (both directions)
         for token_a, token_b, token_c in triangular_paths:
             try:
                 opps = self.find_triangular_arbitrage(token_a, token_b, token_c)
                 all_opportunities.extend(opps)
-                logger.info(f"Scanned triangular {token_a}-{token_b}-{token_c}: {len(opps)} opportunities")
+                if opps:
+                    best_profit = max(opp['profit']['net_profit'] for opp in opps)
+                    logger.info(f"Scanned triangular {token_a}-{token_b}-{token_c}: {len(opps)} opportunities (Best: ${best_profit:.2f})")
+                else:
+                    logger.debug(f"Scanned triangular {token_a}-{token_b}-{token_c}: 0 opportunities")
             except Exception as e:
-                logger.error(f"Error in triangular scan {token_a}-{token_b}-{token_c}: {e}")
+                logger.debug(f"Error in triangular scan {token_a}-{token_b}-{token_c}: {e}")
+        
+        # Filter only profitable opportunities (net profit > $10)
+        profitable_opps = [opp for opp in all_opportunities if opp['profit']['net_profit'] > 10]
         
         # Send Telegram alert if interval has passed
         current_time = time.time()
-        if all_opportunities and (current_time - self.last_alert_time) >= self.alert_interval:
-            message = self.format_opportunity_message(all_opportunities)
+        if profitable_opps and (current_time - self.last_alert_time) >= self.alert_interval:
+            message = self.format_opportunity_message(profitable_opps)
             if message:
                 self.send_telegram_message(message)
                 self.last_alert_time = current_time
-                logger.info(f"Found {len(all_opportunities)} opportunities, alert sent")
-        elif all_opportunities:
-            logger.info(f"Found {len(all_opportunities)} opportunities, waiting for alert interval")
+                total_profit = sum(opp['profit']['net_profit'] for opp in profitable_opps)
+                logger.info(f"Found {len(profitable_opps)} profitable opportunities (Total: ${total_profit:,.2f}), alert sent")
+        elif profitable_opps:
+            total_profit = sum(opp['profit']['net_profit'] for opp in profitable_opps)
+            logger.info(f"Found {len(profitable_opps)} opportunities (Total: ${total_profit:,.2f}), waiting for alert interval")
         else:
-            logger.info("No profitable opportunities found this scan")
+            logger.info("No profitable opportunities found this scan (net profit > $10)")
         
-        return all_opportunities
+        return profitable_opps
     
     def run_continuous(self, scan_interval: int = 10):
         """Run continuous scanning"""

@@ -394,7 +394,8 @@ class ArbitrageScanner:
                 final_amount_1 = 1.0 * price_ab * price_bc * price_ca
                 profit_pct_1 = (final_amount_1 - 1.0) * 100
                 
-                if profit_pct_1 > 0.5:  # Minimum 0.5% profit
+                # Filter out unrealistic profits (calculation errors)
+                if profit_pct_1 > 0.5 and profit_pct_1 < 50:  # Realistic range: 0.5% to 50%
                     # Calculate profit for $50k trade
                     profit_calc = self.calculate_profit(profit_pct_1, 50000)
                     
@@ -422,7 +423,8 @@ class ArbitrageScanner:
                     final_amount_2 = 1.0 * price_ac * price_cb * price_ba
                     profit_pct_2 = (final_amount_2 - 1.0) * 100
                     
-                    if profit_pct_2 > 0.5:
+                    # Filter out unrealistic profits (calculation errors)
+                    if profit_pct_2 > 0.5 and profit_pct_2 < 50:  # Realistic range: 0.5% to 50%
                         # Calculate profit for $50k trade
                         profit_calc = self.calculate_profit(profit_pct_2, 50000)
                         
@@ -642,10 +644,17 @@ class ArbitrageScanner:
             "🔗 Network: Arbitrum Mainnet\n"
             "📊 Scanning DEXs: Uniswap V3, Sushiswap, Camelot\n"
             "💎 Tokens: WETH, ARB, USDC, LINK, MAGIC, USDT, DAI\n"
-            "🔍 Modes: Direct + Triangular Arbitrage\n"
-            "⚡ Flash Loans: Enabled\n"
+            "🔍 Modes: Direct + Triangular Arbitrage (Both Directions)\n"
+            "💵 Flash Loan Size: $50,000 per trade\n"
+            "⚡ Flash Loan Providers: Aave V3, Balancer V2\n\n"
+            "💰 <b>PROFIT CALCULATION:</b>\n"
+            "   • Flash Loan Fee: 0.09% (Aave)\n"
+            "   • Gas Cost: ~$1.50 (Arbitrum)\n"
+            "   • Slippage: 0.1% (conservative)\n"
+            "   • Shows NET profit after all costs\n\n"
             f"⏰ Scan Interval: {scan_interval}s\n"
-            f"📨 Alert Interval: {self.alert_interval}s (3 min)\n\n"
+            f"📨 Alert Interval: {self.alert_interval}s (3 min)\n"
+            "📈 Min Net Profit: $10 per trade\n\n"
             "✅ Bot is now monitoring for profitable spreads..."
         )
         self.send_telegram_message(startup_msg)

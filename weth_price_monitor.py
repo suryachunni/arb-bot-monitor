@@ -125,46 +125,114 @@ def get_sushiswap_price(token_in: str, token_out: str, amount_in: int) -> float:
 
 
 def get_camelot_price(token_in: str, token_out: str, amount_in: int) -> float:
-    """Get price from Camelot"""
+    """Get price from Camelot - tries USDC first, then USDT"""
+    # Try USDC first
     try:
         router = w3.eth.contract(address=CAMELOT_ROUTER, abi=ROUTER_ABI)
         amounts = router.functions.getAmountsOut(
             amount_in,
             [token_in, token_out]
         ).call()
-        return amounts[1] / 1e6  # USDC has 6 decimals
+        price = amounts[1] / 1e6  # USDC has 6 decimals
+        
+        # Validate price is reasonable (WETH should be between $500 and $10,000)
+        if 500 <= price <= 10000:
+            return price
+        else:
+            print(f"⚠️  Camelot USDC price out of range: ${price:,.2f} - trying USDT")
     except Exception as e:
-        print(f"⚠️  Camelot error: {e}")
+        print(f"⚠️  Camelot USDC error: {e} - trying USDT")
+    
+    # Try USDT as fallback
+    try:
+        router = w3.eth.contract(address=CAMELOT_ROUTER, abi=ROUTER_ABI)
+        amounts = router.functions.getAmountsOut(
+            amount_in,
+            [token_in, USDT_ADDRESS]
+        ).call()
+        price = amounts[1] / 1e6  # USDT has 6 decimals
+        
+        # Validate price
+        if 500 <= price <= 10000:
+            return price
+        else:
+            print(f"⚠️  Camelot USDT price out of range: ${price:,.2f}")
+            return None
+    except Exception as e:
+        print(f"⚠️  Camelot USDT error: {e}")
         return None
 
 
+def get_reference_eth_price() -> float:
+    """Get reference ETH price from CoinGecko API"""
+    try:
+        url = "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd"
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            price = data.get('ethereum', {}).get('usd')
+            if price:
+                print(f"📍 Reference Price (CoinGecko): ${price:,.2f}")
+                return price
+    except Exception as e:
+        print(f"⚠️  CoinGecko API error: {e}")
+    return None
+
+
+def validate_price(price: float, dex_name: str, reference_price: float = None) -> bool:
+    """Validate that a price is reasonable for WETH"""
+    if price is None:
+        return False
+    
+    # Basic sanity check: WETH price should be between $500 and $10,000
+    if not (500 <= price <= 10000):
+        print(f"⚠️  {dex_name} price ${price:,.2f} failed basic validation (expected $500-$10,000)")
+        return False
+    
+    # If we have a reference price, check deviation isn't too extreme
+    if reference_price:
+        deviation = abs(price - reference_price) / reference_price * 100
+        if deviation > 10:  # More than 10% deviation from reference
+            print(f"⚠️  {dex_name} price ${price:,.2f} deviates {deviation:.1f}% from reference ${reference_price:,.2f}")
+            return False
+    
+    return True
+
+
 def fetch_all_weth_prices() -> Dict[str, float]:
-    """Fetch WETH prices from all DEXs"""
+    """Fetch WETH prices from all DEXs with validation"""
     print(f"\n{'='*60}")
     print(f"🔍 Fetching WETH prices at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'='*60}")
     
+    # Get reference price for validation
+    reference_price = get_reference_eth_price()
+    
     amount_in = Web3.to_wei(1, 'ether')  # 1 WETH
     prices = {}
     
-    # Uniswap V3 - Multiple fee tiers
+    # Uniswap V3 - Multiple fee tiers (most reliable)
     for fee in [500, 3000, 10000]:  # 0.05%, 0.3%, 1%
         price = get_uniswap_v3_price(WETH_ADDRESS, USDC_ADDRESS, amount_in, fee)
-        if price:
+        if price and validate_price(price, f'Uniswap V3 ({fee/10000}%)', reference_price):
             prices[f'Uniswap V3 ({fee/10000}%)'] = price
             print(f"📊 Uniswap V3 ({fee/10000}%): ${price:,.2f}")
     
     # SushiSwap
     price = get_sushiswap_price(WETH_ADDRESS, USDC_ADDRESS, amount_in)
-    if price:
+    if price and validate_price(price, 'SushiSwap', reference_price):
         prices['SushiSwap'] = price
         print(f"📊 SushiSwap: ${price:,.2f}")
     
-    # Camelot
+    # Camelot (with fallback to USDT)
     price = get_camelot_price(WETH_ADDRESS, USDC_ADDRESS, amount_in)
-    if price:
+    if price and validate_price(price, 'Camelot', reference_price):
         prices['Camelot'] = price
         print(f"📊 Camelot: ${price:,.2f}")
+    
+    # Add reference price if available
+    if reference_price:
+        prices['CoinGecko (Reference)'] = reference_price
     
     return prices
 
@@ -220,18 +288,28 @@ def format_telegram_message(prices: Dict[str, float], opportunities: List[Tuple]
     message += f"  • Average: ${avg_price:,.2f}\n"
     message += f"  • Highest: ${max_price:,.2f}\n"
     message += f"  • Lowest: ${min_price:,.2f}\n"
-    message += f"  • Range: ${max_price - min_price:,.2f}\n"
+    message += f"  • Range: ${max_price - min_price:,.2f} ({((max_price-min_price)/min_price*100):.2f}%)\n"
     
-    # Arbitrage opportunities
-    if opportunities:
-        message += f"\n<b>⚡ Top Arbitrage Opportunities:</b>\n"
-        for i, (buy_dex, sell_dex, sell_price, buy_price, spread) in enumerate(opportunities[:5], 1):
-            message += f"\n{i}. Buy: {buy_dex} (${buy_price:,.2f})\n"
-            message += f"   Sell: {sell_dex} (${sell_price:,.2f})\n"
-            message += f"   💎 Spread: <b>{spread:.3f}%</b>\n"
+    # Arbitrage opportunities (only show if spread > 0.1%)
+    profitable_opps = [opp for opp in opportunities if opp[4] > 0.1]
+    
+    if profitable_opps:
+        message += f"\n<b>⚡ Arbitrage Opportunities:</b>\n"
+        for i, (buy_dex, sell_dex, sell_price, buy_price, spread) in enumerate(profitable_opps[:5], 1):
+            # Add warning emoji for very high spreads (might indicate stale price)
+            warning = " ⚠️" if spread > 5 else ""
+            message += f"\n{i}. <b>{spread:.3f}%</b>{warning}\n"
+            message += f"   Buy: {buy_dex} @ ${buy_price:,.2f}\n"
+            message += f"   Sell: {sell_dex} @ ${sell_price:,.2f}\n"
+            message += f"   Profit: ${sell_price - buy_price:,.2f} per WETH\n"
+    else:
+        message += f"\n<b>⚡ Arbitrage Status:</b>\n"
+        message += f"  • No significant spreads (>0.1%)\n"
+        message += f"  • Markets are efficient ✅\n"
     
     message += f"\n{'='*35}\n"
-    message += "🤖 Auto-monitoring every 3 minutes"
+    message += "🤖 Monitoring every 3 minutes\n"
+    message += "📊 All prices validated"
     
     return message
 

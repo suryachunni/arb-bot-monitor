@@ -471,65 +471,40 @@ class ArbitrageScanner:
         if not opportunities:
             return None
         
-        message = f"🚨 <b>ARBITRAGE OPPORTUNITIES DETECTED</b> 🚨\n"
+        # Sort all by net profit and take top 3
+        top_opps = sorted(opportunities, key=lambda x: x['profit']['net_profit'], reverse=True)[:3]
+        
+        message = f"🚨 <b>TOP ARBITRAGE OPPORTUNITIES</b> 🚨\n"
         message += f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}\n"
-        message += f"🔗 Network: Arbitrum Mainnet\n"
-        message += f"💵 Flash Loan Size: <b>$50,000</b>\n\n"
+        message += f"🔗 Arbitrum Mainnet\n"
+        message += f"💵 Flash Loan: <b>$50,000</b>\n\n"
         
-        # Direct arbitrage
-        direct_opps = [opp for opp in opportunities if opp['type'] == 'direct']
-        if direct_opps:
-            message += "📊 <b>DIRECT ARBITRAGE OPPORTUNITIES:</b>\n"
-            message += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        for idx, opp in enumerate(top_opps, 1):
+            profit = opp['profit']
             
-            for idx, opp in enumerate(sorted(direct_opps, key=lambda x: x['profit']['net_profit'], reverse=True)[:5], 1):
-                profit = opp['profit']
-                message += f"\n<b>#{idx} - {opp['pair']}</b>\n"
-                message += f"  📈 Buy:  {opp['buy_dex']} @ ${opp['buy_price']:.6f}\n"
-                message += f"  📉 Sell: {opp['sell_dex']} @ ${opp['sell_price']:.6f}\n"
-                message += f"  📊 Spread: <b>{opp['spread_pct']:.4f}%</b>\n\n"
-                
-                message += f"  💰 <b>PROFIT BREAKDOWN ($50k):</b>\n"
-                message += f"     Gross Profit:    ${profit['gross_profit']:,.2f}\n"
-                message += f"     Flash Loan Fee:  -${profit['flash_loan_fee']:,.2f} (0.09%)\n"
-                message += f"     Gas Cost:        -${profit['gas_cost']:,.2f}\n"
-                message += f"     Slippage (0.1%): -${profit['slippage_cost']:,.2f}\n"
-                message += f"     ──────────────────────\n"
-                message += f"     <b>NET PROFIT:      ${profit['net_profit']:,.2f}</b>\n"
-                message += f"     <b>ROI:             {profit['roi_pct']:.3f}%</b>\n"
-                message += f"  ⚡ Flash Loan: Aave/Balancer\n"
-        
-        # Triangular arbitrage
-        triangular_opps = [opp for opp in opportunities if opp['type'] == 'triangular']
-        if triangular_opps:
-            message += "\n\n🔺 <b>TRIANGULAR ARBITRAGE OPPORTUNITIES:</b>\n"
-            message += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            if opp['type'] == 'direct':
+                message += f"<b>#{idx} DIRECT - {opp['pair']}</b>\n"
+                message += f"📈 Buy:  {opp['buy_dex']} @ ${opp['buy_price']:.6f}\n"
+                message += f"📉 Sell: {opp['sell_dex']} @ ${opp['sell_price']:.6f}\n"
+                message += f"📊 Spread: <b>{opp['spread_pct']:.3f}%</b>\n"
+            else:
+                message += f"<b>#{idx} TRIANGULAR</b>\n"
+                message += f"🔄 {opp['path']}\n"
+                message += f"🏦 DEX: {opp['dex']}\n"
+                message += f"📊 Profit: <b>{opp['profit_pct']:.3f}%</b>\n"
             
-            for idx, opp in enumerate(sorted(triangular_opps, key=lambda x: x['profit']['net_profit'], reverse=True)[:5], 1):
-                profit = opp['profit']
-                message += f"\n<b>#{idx} - {opp['dex']} ({opp['direction'].upper()})</b>\n"
-                message += f"  🔄 Path: <b>{opp['path']}</b>\n"
-                message += f"  📊 Route Prices:\n"
-                for pair, price in list(opp['prices'].items())[:3]:
-                    message += f"     • {pair}: {price:.8f}\n"
-                message += f"  📈 Profit: <b>{opp['profit_pct']:.4f}%</b>\n\n"
-                
-                message += f"  💰 <b>PROFIT BREAKDOWN ($50k):</b>\n"
-                message += f"     Gross Profit:    ${profit['gross_profit']:,.2f}\n"
-                message += f"     Flash Loan Fee:  -${profit['flash_loan_fee']:,.2f} (0.09%)\n"
-                message += f"     Gas Cost:        -${profit['gas_cost']:,.2f}\n"
-                message += f"     Slippage (0.1%): -${profit['slippage_cost']:,.2f}\n"
-                message += f"     ──────────────────────\n"
-                message += f"     <b>NET PROFIT:      ${profit['net_profit']:,.2f}</b>\n"
-                message += f"     <b>ROI:             {profit['roi_pct']:.3f}%</b>\n"
-                message += f"  ⚡ Flash Loan: Aave/Balancer\n"
+            message += f"\n💰 <b>PROFIT ($50k flash loan):</b>\n"
+            message += f"  Gross:     ${profit['gross_profit']:>8,.2f}\n"
+            message += f"  Costs:     -${profit['total_costs']:>7,.2f}\n"
+            message += f"  <b>NET:       ${profit['net_profit']:>8,.2f}</b>\n"
+            message += f"  <b>ROI:       {profit['roi_pct']:>7.2f}%</b>\n\n"
         
         # Summary
         total_net_profit = sum(opp['profit']['net_profit'] for opp in opportunities)
-        message += f"\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        message += f"📈 <b>TOTAL OPPORTUNITIES: {len(opportunities)}</b>\n"
-        message += f"💵 <b>COMBINED NET PROFIT: ${total_net_profit:,.2f}</b>\n"
-        message += f"⚡ All opportunities are flash loan ready!\n"
+        message += f"━━━━━━━━━━━━━━━━━━━\n"
+        message += f"📊 Total Found: <b>{len(opportunities)}</b>\n"
+        message += f"💰 Combined Profit: <b>${total_net_profit:,.2f}</b>\n"
+        message += f"⚡ Flash Loan: Aave/Balancer ready\n"
         
         return message
     

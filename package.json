@@ -5,8 +5,10 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts",
+    "start": "node dist/index-ultra-fast.js",
+    "start:old": "node dist/index.js",
+    "dev": "ts-node src/index-ultra-fast.ts",
+    "dev:old": "ts-node src/index.ts",
     "deploy": "hardhat run scripts/deploy.ts --network arbitrum",
     "compile": "hardhat compile"
   },
@@ -17,6 +19,7 @@
     "@uniswap/v3-sdk": "^3.11.2",
     "@uniswap/sdk-core": "^4.2.1",
     "@uniswap/v2-sdk": "^3.2.2",
+    "@flashbots/ethers-provider-bundle": "^0.6.2",
     "ethers": "^5.7.2",
     "node-telegram-bot-api": "^0.64.0",
     "axios": "^1.6.2",

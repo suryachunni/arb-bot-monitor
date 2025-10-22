@@ -1,6 +1,15 @@
-# ⚡ Flash Loan Arbitrage Bot - Arbitrum
+# ⚡ ULTRA-FAST Flash Loan Arbitrage Bot v2.0 - Arbitrum
 
-A **production-grade**, **fully automated** flash loan arbitrage bot for Arbitrum mainnet. This bot scans multiple DEXs in real-time, detects profitable arbitrage opportunities, and executes trades automatically using Aave V3 flash loans.
+A **production-grade**, **lightning-fast**, **fully automated** flash loan arbitrage bot for Arbitrum mainnet. This bot uses event-driven architecture with Multicall3 to scan DEXs in real-time (every 0.25s), detects profitable arbitrage opportunities with accurate profit calculation, and executes trades in under 1 second using Aave V3 flash loans.
+
+## 🚀 VERSION 2.0 - ULTRA-FAST UPGRADES
+
+- ⚡ **40x faster** scanning (0.25s vs 10s intervals)
+- 📊 **Multicall3** - All prices in ONE RPC call
+- 🔔 **Event-driven** - Reacts to every block instantly
+- 💰 **Accurate profits** - Shows NET profit after ALL costs
+- 🎯 **Focused** - Only ultra-liquid pairs (Uniswap V3 + SushiSwap)
+- ⚡ **Sub-second execution** - From detection to transaction in < 1s
 
 ## 🌟 Features
 
@@ -35,57 +44,41 @@ High-liquidity tokens on Arbitrum:
 - WETH, USDC, USDT, ARB, WBTC, DAI
 - LINK, UNI, FRAX, GMX, GNS, MAGIC
 
-## 🚀 Quick Start
+## 🚀 Quick Start (3 Steps!)
 
-### Prerequisites
-
-- Node.js v18+ 
-- Arbitrum wallet with ETH for gas fees
-- Telegram bot token and chat ID
-- Alchemy API key (or other Arbitrum RPC)
-
-### Installation
-
-1. **Clone and Install**
+### Step 1: Install Dependencies
 ```bash
-git clone <your-repo>
-cd flash-loan-arbitrage-bot
 npm install
 ```
 
-2. **Configure Environment**
-```bash
-cp .env.example .env
-nano .env
-```
-
-Update the following in `.env`:
+### Step 2: Add Your Private Key
+Edit `.env` and add your wallet private key:
 ```env
-# Add your wallet private key (KEEP THIS SECRET!)
 PRIVATE_KEY=your_private_key_here
-
-# These are already filled:
-TELEGRAM_BOT_TOKEN=7990738699:AAFfoPA4VGO_90DyQauHNiwbHnfwOTmfbgU
-TELEGRAM_CHAT_ID=8305086804
-ARBITRUM_RPC_URL=https://arb-mainnet.g.alchemy.com/v2/wuLT9bA29g4SF1zeOlgpg
 ```
 
-3. **Deploy Smart Contract**
+✅ Everything else is pre-configured (Telegram, RPC, etc.)
+
+### Step 3: Deploy & Run
 ```bash
+# Compile and deploy contract
 npm run compile
 npm run deploy
-```
 
-This will:
-- Deploy the FlashLoanArbitrage contract to Arbitrum
-- Automatically update your `.env` with the contract address
-- Save deployment info to `deployment.json`
-
-4. **Build and Start**
-```bash
+# Start the ULTRA-FAST bot
 npm run build
 npm start
 ```
+
+## ✅ You're Live!
+
+Your bot is now:
+- ⚡ Scanning every 0.25 seconds
+- 🎯 Detecting arbitrage automatically  
+- 💰 Executing profitable trades
+- 📱 Sending Telegram alerts
+
+**See START_HERE.md for detailed walkthrough!**
 
 ## 🎯 How It Works
 

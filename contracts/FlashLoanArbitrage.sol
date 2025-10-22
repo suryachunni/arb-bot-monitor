@@ -59,9 +59,6 @@ contract FlashLoanArbitrage is Ownable, ReentrancyGuard {
     // SushiSwap Router on Arbitrum
     address public constant SUSHISWAP_ROUTER = 0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506;
     
-    // Camelot Router on Arbitrum
-    address public constant CAMELOT_ROUTER = 0xc873fEcbd354f5A56E00E710B90EF4201db2448d;
-    
     // Fee tiers for Uniswap V3
     uint24 public constant FEE_LOW = 500;     // 0.05%
     uint24 public constant FEE_MEDIUM = 3000; // 0.3%

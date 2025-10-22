@@ -1,3 +1,4 @@
+import { ethers } from 'ethers';
 import { logger } from './utils/logger';
 import { config, validateConfig } from './config/config';
 import { FastPriceScanner } from './services/FastPriceScanner';
@@ -43,7 +44,11 @@ class UltraFastArbitrageBot {
 
     // Initialize services
     this.priceScanner = new FastPriceScanner();
-    this.arbitrageDetector = new FastArbitrageDetector();
+    
+    // Create provider for pool reserve reader (UPGRADE: Reads actual pool reserves!)
+    const provider = new ethers.providers.JsonRpcProvider(config.network.rpcUrl);
+    this.arbitrageDetector = new FastArbitrageDetector(provider);
+    
     this.telegramBot = new TelegramNotifier();
     this.executor = new FlashbotsExecutor();
 

@@ -3,6 +3,7 @@ import { logger } from '../utils/logger';
 import { FastPricePair } from './FastPriceScanner';
 import { config } from '../config/config';
 import { SPEED_CONSTANTS } from '../config/constants';
+import { PoolReserveReader } from './PoolReserveReader';
 
 export interface FastArbitrageOpportunity {
   tokenA: string;
@@ -29,15 +30,19 @@ export interface FastArbitrageOpportunity {
 export class FastArbitrageDetector {
   private minProfitUSD: number;
   private ethPriceUSD: number = 2000; // Conservative ETH price for gas calculation
+  private poolReader?: PoolReserveReader;
 
-  constructor() {
+  constructor(provider?: ethers.providers.Provider) {
     this.minProfitUSD = SPEED_CONSTANTS.MIN_PROFIT_AFTER_GAS;
+    if (provider) {
+      this.poolReader = new PoolReserveReader(provider);
+    }
   }
 
   /**
-   * FAST: Detect arbitrage with accurate profit calculation
+   * FAST: Detect arbitrage with accurate profit calculation (NOW WITH POOL RESERVES!)
    */
-  detectArbitrageFast(priceData: Map<string, FastPricePair[]>): FastArbitrageOpportunity[] {
+  async detectArbitrageFast(priceData: Map<string, FastPricePair[]>): Promise<FastArbitrageOpportunity[]> {
     const startTime = Date.now();
     const opportunities: FastArbitrageOpportunity[] = [];
 
@@ -52,13 +57,13 @@ export class FastArbitrageDetector {
           const price1 = prices[i];
           const price2 = prices[j];
 
-          // Check both directions
-          const arbAtoB = this.calculateArbitrage(price1, price2, 'AtoB');
+          // Check both directions (NOW READS POOL RESERVES FOR EXACT SLIPPAGE!)
+          const arbAtoB = await this.calculateArbitrage(price1, price2, 'AtoB');
           if (arbAtoB && arbAtoB.netProfitUSD >= this.minProfitUSD) {
             opportunities.push(arbAtoB);
           }
 
-          const arbBtoA = this.calculateArbitrage(price1, price2, 'BtoA');
+          const arbBtoA = await this.calculateArbitrage(price1, price2, 'BtoA');
           if (arbBtoA && arbBtoA.netProfitUSD >= this.minProfitUSD) {
             opportunities.push(arbBtoA);
           }
@@ -88,13 +93,13 @@ export class FastArbitrageDetector {
   }
 
   /**
-   * Calculate arbitrage with ACCURATE profit estimation
+   * Calculate arbitrage with ACCURATE profit estimation (NOW WITH POOL RESERVES!)
    */
-  private calculateArbitrage(
+  private async calculateArbitrage(
     price1: FastPricePair,
     price2: FastPricePair,
     direction: 'AtoB' | 'BtoA'
-  ): FastArbitrageOpportunity | null {
+  ): Promise<FastArbitrageOpportunity | null> {
     let buyPrice: number;
     let sellPrice: number;
     let buyDex: string;
@@ -128,11 +133,24 @@ export class FastArbitrageDetector {
     // Quick filter - must have at least 0.3% spread
     if (profitPercentage < 0.3) return null;
 
-    // Calculate ACCURATE costs
-    const costs = this.calculateAccurateCosts(buyDex, sellDex, buyFee, sellFee, gasEstimate);
-    
     // Loan amount
     const loanAmountUSD = config.flashLoan.minLoanAmountUSD;
+
+    // Determine token addresses for pool reserve reading
+    const tokenBorrowAddress = direction === 'AtoB' ? price1.tokenAAddress : price1.tokenBAddress;
+    const tokenTargetAddress = direction === 'AtoB' ? price1.tokenBAddress : price1.tokenAAddress;
+
+    // Calculate ACCURATE costs (NOW READS ACTUAL POOL RESERVES!)
+    const costs = await this.calculateAccurateCosts(
+      buyDex, 
+      sellDex, 
+      tokenBorrowAddress,
+      tokenTargetAddress,
+      loanAmountUSD,
+      buyFee, 
+      sellFee, 
+      gasEstimate
+    );
 
     // Gross profit (before costs)
     const grossProfitUSD = loanAmountUSD * (profitPercentage / 100);
@@ -173,25 +191,55 @@ export class FastArbitrageDetector {
   }
 
   /**
-   * Calculate ACCURATE costs (DEX fees + gas + flash loan premium)
+   * Calculate ACCURATE costs (DEX fees + EXACT slippage from pool reserves + gas + flash loan premium)
    */
-  private calculateAccurateCosts(
+  private async calculateAccurateCosts(
     buyDex: string,
     sellDex: string,
+    tokenBorrowAddress: string,
+    tokenTargetAddress: string,
+    loanAmountUSD: number,
     buyFee?: number,
     sellFee?: number,
     gasEstimate?: number
-  ): { totalCostUSD: number; breakdown: any } {
+  ): Promise<{ totalCostUSD: number; breakdown: any }> {
     // DEX fees
     const buyFeePercent = buyFee ? buyFee / 10000 / 100 : 0.003; // Default 0.3%
     const sellFeePercent = sellFee ? sellFee / 10000 / 100 : 0.003;
     
-    const loanAmount = config.flashLoan.minLoanAmountUSD;
-    const buyFeeCost = loanAmount * buyFeePercent;
-    const sellFeeCost = loanAmount * sellFeePercent;
+    const buyFeeCost = loanAmountUSD * buyFeePercent;
+    const sellFeeCost = loanAmountUSD * sellFeePercent;
+
+    // Calculate EXACT slippage from pool reserves
+    let slippageCost = 0;
+    if (this.poolReader) {
+      try {
+        const loanAmountWei = ethers.utils.parseUnits(loanAmountUSD.toString(), 18);
+        const buySlippage = await this.poolReader.calculateSlippage(
+          tokenBorrowAddress,
+          tokenTargetAddress,
+          loanAmountWei,
+          buyDex,
+          buyFee
+        );
+        const sellSlippage = await this.poolReader.calculateSlippage(
+          tokenTargetAddress,
+          tokenBorrowAddress,
+          loanAmountWei,
+          sellDex,
+          sellFee
+        );
+        slippageCost = loanAmountUSD * ((buySlippage + sellSlippage) / 100);
+      } catch (error) {
+        // Fallback to estimation if reading fails
+        slippageCost = loanAmountUSD * 0.003; // 0.3% default
+      }
+    } else {
+      slippageCost = loanAmountUSD * 0.003; // 0.3% default
+    }
 
     // Aave flash loan premium: 0.09%
-    const flashLoanPremium = loanAmount * 0.0009;
+    const flashLoanPremium = loanAmountUSD * 0.0009;
 
     // Gas cost (estimated)
     let gasCostUSD = 15; // Conservative default
@@ -213,13 +261,14 @@ export class FastArbitrageDetector {
       }
     }
 
-    const totalCostUSD = buyFeeCost + sellFeeCost + flashLoanPremium + gasCostUSD;
+    const totalCostUSD = buyFeeCost + sellFeeCost + slippageCost + flashLoanPremium + gasCostUSD;
 
     return {
       totalCostUSD,
       breakdown: {
         buyFee: buyFeeCost,
         sellFee: sellFeeCost,
+        slippage: slippageCost,
         flashLoanPremium,
         gas: gasCostUSD,
       },

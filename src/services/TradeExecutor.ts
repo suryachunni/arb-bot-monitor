@@ -226,8 +226,6 @@ export class TradeExecutor {
         return DEX_ROUTERS.UNISWAP_V3;
       case 'SushiSwap':
         return DEX_ROUTERS.SUSHISWAP;
-      case 'Camelot':
-        return DEX_ROUTERS.CAMELOT;
       default:
         throw new Error(`Unknown DEX: ${dexName}`);
     }

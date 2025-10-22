@@ -139,8 +139,8 @@ class UltraFastArbitrageBot {
       // STEP 1: Fetch ALL prices in ONE multicall (ultra-fast!)
       const priceData = await this.priceScanner.scanAllPairsUltraFast(HIGH_LIQUIDITY_PAIRS);
       
-      // STEP 2: Detect arbitrage opportunities (with accurate profit calc)
-      const opportunities = this.arbitrageDetector.detectArbitrageFast(priceData);
+      // STEP 2: Detect arbitrage opportunities (with accurate profit calc + pool reserves!)
+      const opportunities = await this.arbitrageDetector.detectArbitrageFast(priceData);
       
       // STEP 3: Filter best opportunities
       const bestOpportunities = this.arbitrageDetector.filterBestOpportunities(opportunities);

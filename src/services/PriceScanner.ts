@@ -43,7 +43,6 @@ export class PriceScanner {
   private provider: ethers.providers.JsonRpcProvider;
   private uniswapV3Quoter: ethers.Contract;
   private sushiswapRouter: ethers.Contract;
-  private camelotRouter: ethers.Contract;
   private priceCache: Map<string, PricePair[]> = new Map();
   private tokenDecimals: Map<string, number> = new Map();
 
@@ -57,8 +56,7 @@ export class PriceScanner {
     // SushiSwap Router
     this.sushiswapRouter = new ethers.Contract(DEX_ROUTERS.SUSHISWAP, UNISWAP_V2_ROUTER_ABI, this.provider);
     
-    // Camelot Router
-    this.camelotRouter = new ethers.Contract(DEX_ROUTERS.CAMELOT, UNISWAP_V2_ROUTER_ABI, this.provider);
+    // Camelot removed - focus on reliable DEXs only
   }
 
   /**
@@ -206,29 +204,7 @@ export class PriceScanner {
       }
     }
     
-    // Scan Camelot
-    if (config.dex.enableCamelot) {
-      try {
-        const priceAtoB = await this.getUniswapV2Price(this.camelotRouter, tokenA, tokenB, baseAmount);
-        const baseBAmount = ethers.utils.parseUnits('1', decimalsB);
-        const priceBtoA = await this.getUniswapV2Price(this.camelotRouter, tokenB, tokenA, baseBAmount);
-        
-        if (priceAtoB && priceBtoA) {
-          prices.push({
-            tokenA: tokenASymbol,
-            tokenB: tokenBSymbol,
-            tokenAAddress: tokenA,
-            tokenBAddress: tokenB,
-            priceAtoB: parseFloat(ethers.utils.formatUnits(priceAtoB, decimalsB)),
-            priceBtoA: parseFloat(ethers.utils.formatUnits(priceBtoA, decimalsA)),
-            dex: 'Camelot',
-            timestamp: Date.now(),
-          });
-        }
-      } catch (error) {
-        logger.debug(`Failed to get Camelot price for ${tokenASymbol}/${tokenBSymbol}`);
-      }
-    }
+    // Camelot removed - unreliable, focus on Uniswap V3 + SushiSwap only
     
     return prices;
   }
@@ -287,8 +263,6 @@ export class PriceScanner {
       return await this.getUniswapV3Price(tokenIn, tokenOut, amountIn, fee);
     } else if (dex === 'SushiSwap') {
       return await this.getUniswapV2Price(this.sushiswapRouter, tokenIn, tokenOut, amountIn);
-    } else if (dex === 'Camelot') {
-      return await this.getUniswapV2Price(this.camelotRouter, tokenIn, tokenOut, amountIn);
     }
     return null;
   }

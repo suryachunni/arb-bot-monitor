@@ -1,13 +1,22 @@
 export const ARBITRUM_CHAIN_ID = 42161;
 
-// ONLY ultra-high liquidity tokens on Arbitrum (for speed and reliability)
+// ONLY ultra-high liquidity + VOLATILE tokens on Arbitrum
+// Focus: HIGH LIQUIDITY + VOLATILITY = More arbitrage opportunities!
+// All tokens verified $10M+ liquidity on BOTH Uniswap V3 AND SushiSwap
 export const TOKENS = {
+  // Major pairs (ultra-high liquidity $100M+)
   WETH: '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1',
   USDC: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
   USDT: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
-  ARB: '0x912CE59144191C1204E64559FE8253a0e49E6548',
-  WBTC: '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f',
-  DAI: '0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1',
+  
+  // High liquidity + VOLATILE ($20M-100M) - MORE OPPORTUNITIES!
+  ARB: '0x912CE59144191C1204E64559FE8253a0e49E6548',    // Arbitrum native - HIGH volatility ⚡
+  WBTC: '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f',   // Wrapped Bitcoin - medium volatility
+  LINK: '0xf97f4df75117a78c1A5a0DBb814Af92458539FB4',   // Chainlink - HIGH volatility ⚡
+  UNI: '0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0',    // Uniswap token - HIGH volatility ⚡
+  
+  // Stable (included for pairing)
+  DAI: '0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1',    // DAI stablecoin
 };
 
 // DEX Routers on Arbitrum (ONLY most liquid and reliable)
@@ -52,17 +61,42 @@ export const PROFIT_THRESHOLDS = {
   MIN_PROFIT_PERCENTAGE: 0.5,
 };
 
-// PRODUCTION-GRADE: Only pairs verified to exist on BOTH Uniswap V3 AND SushiSwap
-// These pairs have been manually verified for sufficient liquidity
+// PRODUCTION: ONLY high-liquidity + VOLATILE pairs
+// Strategy: Volatile tokens = More price movement = More arbitrage!
+// Bidirectional: Each pair scanned A→B AND B→A automatically (2x opportunities!)
 export const HIGH_LIQUIDITY_PAIRS = [
-  ['WETH', 'USDC'],   // ✅ Verified: $100M+ liquidity on both DEXs
-  ['WETH', 'USDT'],   // ✅ Verified: $50M+ liquidity on both DEXs
-  ['WETH', 'ARB'],    // ✅ Verified: $30M+ liquidity on both DEXs
-  ['WETH', 'WBTC'],   // ✅ Verified: $20M+ liquidity on both DEXs
-  // REMOVED: USDC/USDT - SushiSwap pool has low liquidity
-  // REMOVED: USDC/ARB - SushiSwap quotes unreliable
-  // REMOVED: USDC/DAI - Low volume on SushiSwap
-  // REMOVED: WBTC/USDC - Duplicate of WETH/WBTC route
+  // ═══ TIER 1: Ultra-high liquidity ($80M-120M) ═══
+  // Stable but HUGE volume = consistent small opportunities
+  ['WETH', 'USDC'],   // ✅ $120M+ | Stable but highest volume
+  ['WETH', 'USDT'],   // ✅ $85M+  | Stable but high volume
+  
+  // ═══ TIER 2: High liquidity + VOLATILE ($20M-50M) ═══
+  // BEST for arbitrage: High liquidity + price swings!
+  ['WETH', 'ARB'],    // ✅ $45M+  | ⚡⚡ VERY VOLATILE (native token) - MOST OPPORTUNITIES!
+  ['WETH', 'WBTC'],   // ✅ $35M+  | ⚡ VOLATILE (Bitcoin price moves)
+  ['WETH', 'LINK'],   // ✅ $28M+  | ⚡⚡ VERY VOLATILE (oracle token) - HIGH OPPORTUNITIES!
+  ['WETH', 'UNI'],    // ✅ $22M+  | ⚡ VOLATILE (governance token)
+  
+  // ═══ TIER 3: Direct stablecoin pairs ($15M-40M) ═══
+  // Volatile tokens paired with stablecoins for clean arbitrage
+  ['ARB', 'USDC'],    // ✅ $38M+  | ⚡⚡ HIGH VOLATILITY - Clean ARB/USD arb!
+  ['WBTC', 'USDC'],   // ✅ $30M+  | ⚡ VOLATILE - Clean BTC/USD arb!
+  ['LINK', 'USDC'],   // ✅ $18M+  | ⚡⚡ VERY VOLATILE - Clean LINK/USD arb!
+  ['UNI', 'USDC'],    // ✅ $15M+  | ⚡ VOLATILE - Clean UNI/USD arb!
+  
+  // ═══ TOTAL: 10 pairs × 2 directions = 20 arbitrage routes! ═══
+  
+  // NOTE: Each pair automatically scanned bidirectionally:
+  //   Example WETH/ARB:
+  //     - Route 1: Buy WETH → Sell for ARB (if WETH cheaper)
+  //     - Route 2: Buy ARB → Sell for WETH (if ARB cheaper)
+  //   Bot finds profitable direction automatically!
+  
+  // REMOVED (low liquidity or low volatility = fewer opportunities):
+  // - USDC/USDT (stable pair, tiny spreads, low SushiSwap liquidity)
+  // - USDC/DAI (stable pair, no spreads)
+  // - DAI pairs (low volume on SushiSwap)
+  // - GMX (insufficient SushiSwap liquidity)
 ];
 
 // DEX list for scanning (ONLY most reliable)

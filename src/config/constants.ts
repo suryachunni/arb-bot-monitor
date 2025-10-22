@@ -1,0 +1,84 @@
+export const ARBITRUM_CHAIN_ID = 42161;
+
+// Major tokens on Arbitrum with high liquidity
+export const TOKENS = {
+  WETH: '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1',
+  USDC: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
+  USDT: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
+  ARB: '0x912CE59144191C1204E64559FE8253a0e49E6548',
+  WBTC: '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f',
+  DAI: '0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1',
+  LINK: '0xf97f4df75117a78c1A5a0DBb814Af92458539FB4',
+  UNI: '0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0',
+  FRAX: '0x17FC002b466eEc40DaE837Fc4bE5c67993ddBd6F',
+  GMX: '0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a',
+  GNS: '0x18c11FD286C5EC11c3b683Caa813B77f5163A122',
+  MAGIC: '0x539bdE0d7Dbd336b79148AA742883198BBF60342',
+};
+
+// DEX Routers on Arbitrum
+export const DEX_ROUTERS = {
+  UNISWAP_V3: '0xE592427A0AEce92De3Edee1F18E0157C05861564',
+  UNISWAP_V2: '0x4752ba5dbc23f44d87826276bf6fd6b1c372ad24',
+  SUSHISWAP: '0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506',
+  CAMELOT: '0xc873fEcbd354f5A56E00E710B90EF4201db2448d',
+  BALANCER: '0xBA12222222228d8Ba445958a75a0704d566BF2C8',
+};
+
+// Uniswap V3 Factory
+export const UNISWAP_V3_FACTORY = '0x1F98431c8aD98523631AE4a59f267346ea31F984';
+
+// SushiSwap Factory
+export const SUSHISWAP_FACTORY = '0xc35DADB65012eC5796536bD9864eD8773aBc74C4';
+
+// Camelot Factory
+export const CAMELOT_FACTORY = '0x6EcCab422D763aC031210895C81787E87B43A652';
+
+// Aave V3 Pool Address Provider
+export const AAVE_POOL_PROVIDER = '0xa97684ead0e402dC232d5A977953DF7ECBaB3CDb';
+
+// Uniswap V3 Fee Tiers
+export const UNISWAP_V3_FEES = {
+  LOWEST: 100,    // 0.01%
+  LOW: 500,       // 0.05%
+  MEDIUM: 3000,   // 0.3%
+  HIGH: 10000,    // 1%
+};
+
+// Gas optimization constants
+export const GAS_CONSTANTS = {
+  MAX_GAS_PRICE_GWEI: 2,
+  GAS_LIMIT_MULTIPLIER: 1.2,
+  PRIORITY_FEE_PERCENTILE: 10,
+};
+
+// Profit thresholds
+export const PROFIT_THRESHOLDS = {
+  MIN_PROFIT_USD: 100,
+  MIN_PROFIT_PERCENTAGE: 0.5,
+};
+
+// Token pairs with high liquidity
+export const HIGH_LIQUIDITY_PAIRS = [
+  ['WETH', 'USDC'],
+  ['WETH', 'USDT'],
+  ['WETH', 'ARB'],
+  ['WETH', 'WBTC'],
+  ['USDC', 'USDT'],
+  ['USDC', 'ARB'],
+  ['USDC', 'DAI'],
+  ['ARB', 'USDT'],
+  ['WETH', 'LINK'],
+  ['WETH', 'UNI'],
+  ['WETH', 'GMX'],
+  ['USDC', 'GMX'],
+  ['WETH', 'MAGIC'],
+  ['USDC', 'FRAX'],
+];
+
+// DEX list for scanning
+export const DEX_LIST = [
+  { name: 'UniswapV3', router: DEX_ROUTERS.UNISWAP_V3, version: 3 },
+  { name: 'SushiSwap', router: DEX_ROUTERS.SUSHISWAP, version: 2 },
+  { name: 'Camelot', router: DEX_ROUTERS.CAMELOT, version: 2 },
+];

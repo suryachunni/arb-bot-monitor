@@ -7,6 +7,10 @@ export class TelegramNotifier {
   private bot: TelegramBot;
   private chatId: string;
   private executeCallback?: (opportunity: ArbitrageOpportunity) => Promise<void>;
+  private startBotCallback?: () => void;
+  private stopBotCallback?: () => void;
+  private pauseBotCallback?: () => void;
+  private resumeBotCallback?: () => void;
 
   constructor() {
     this.bot = new TelegramBot(config.telegram.botToken, { polling: true });
@@ -27,7 +31,9 @@ export class TelegramNotifier {
         'Commands:\n' +
         '/status - Check bot status\n' +
         '/balance - Check wallet balance\n' +
-        '/config - View configuration\n' +
+        '/pause - Pause bot (stop scanning)\n' +
+        '/resume - Resume bot (restart scanning)\n' +
+        '/stop - Stop bot completely\n' +
         '/help - Show this message',
         { parse_mode: 'Markdown' }
       );
@@ -35,6 +41,29 @@ export class TelegramNotifier {
 
     this.bot.onText(/\/status/, (msg) => {
       this.sendStatus();
+    });
+
+    this.bot.onText(/\/pause/, (msg) => {
+      if (this.pauseBotCallback) {
+        this.pauseBotCallback();
+        this.bot.sendMessage(msg.chat.id, '⏸️ *Bot Paused*\n\nScanning stopped. Send /resume to continue.', { parse_mode: 'Markdown' });
+      }
+    });
+
+    this.bot.onText(/\/resume/, (msg) => {
+      if (this.resumeBotCallback) {
+        this.resumeBotCallback();
+        this.bot.sendMessage(msg.chat.id, '▶️ *Bot Resumed*\n\nScanning restarted!', { parse_mode: 'Markdown' });
+      }
+    });
+
+    this.bot.onText(/\/stop/, (msg) => {
+      if (this.stopBotCallback) {
+        this.bot.sendMessage(msg.chat.id, '🛑 *Bot Stopping*\n\nShutting down gracefully...', { parse_mode: 'Markdown' });
+        setTimeout(() => {
+          this.stopBotCallback!();
+        }, 1000);
+      }
     });
 
     this.bot.onText(/\/help/, (msg) => {
@@ -101,6 +130,21 @@ export class TelegramNotifier {
    */
   onExecute(callback: (opportunity: ArbitrageOpportunity) => Promise<void>) {
     this.executeCallback = callback;
+  }
+
+  /**
+   * Register bot control callbacks
+   */
+  onBotControls(callbacks: {
+    start?: () => void;
+    stop?: () => void;
+    pause?: () => void;
+    resume?: () => void;
+  }) {
+    this.startBotCallback = callbacks.start;
+    this.stopBotCallback = callbacks.stop;
+    this.pauseBotCallback = callbacks.pause;
+    this.resumeBotCallback = callbacks.resume;
   }
 
   /**

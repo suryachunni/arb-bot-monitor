@@ -5,12 +5,14 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index-ultra-fast.js",
+    "start": "node dist/index-production.js",
+    "start:fast": "node dist/index-ultra-fast.js",
     "start:old": "node dist/index.js",
-    "dev": "ts-node src/index-ultra-fast.ts",
-    "dev:old": "ts-node src/index.ts",
+    "dev": "ts-node src/index-production.ts",
+    "dev:fast": "ts-node src/index-ultra-fast.ts",
     "deploy": "hardhat run scripts/deploy.ts --network arbitrum",
-    "compile": "hardhat compile"
+    "compile": "hardhat compile",
+    "test": "ts-node test-production.ts"
   },
   "keywords": ["arbitrage", "flash-loan", "defi", "arbitrum"],
   "author": "",

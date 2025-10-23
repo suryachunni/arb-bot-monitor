@@ -34,7 +34,7 @@ export class EliteExecutor {
   
   constructor() {
     this.provider = new ethers.providers.JsonRpcProvider(config.network.rpcUrl);
-    this.wallet = new ethers.Wallet(config.privateKey, this.provider);
+    this.wallet = new ethers.Wallet(config.wallet.privateKey, this.provider);
     
     // Initialize contract
     const contractAddress = process.env.CONTRACT_ADDRESS || '';

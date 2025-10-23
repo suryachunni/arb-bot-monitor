@@ -1,4 +1,4 @@
-import { ProfessionalScanner } from './services/ProfessionalScanner';
+import { EliteScanner } from './services/EliteScanner';
 import { ProductionExecutor } from './services/ProductionExecutor';
 import { TelegramBot } from './services/TelegramBot';
 import { logger } from './utils/logger';

@@ -1,4 +1,4 @@
-import { ProductionMultiDexScanner } from './services/ProductionMultiDexScanner';
+import { ProfessionalScanner } from './services/ProfessionalScanner';
 import { ProductionExecutor } from './services/ProductionExecutor';
 import { TelegramBot } from './services/TelegramBot';
 import { logger } from './utils/logger';
@@ -306,5 +306,8 @@ process.on('SIGTERM', async () => {
 // Auto-start
 bot.start().catch((error) => {
   logger.error(`Fatal error: ${error.message}`);
+  process.exit(1);
+});
+`);
   process.exit(1);
 });

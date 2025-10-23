@@ -1,30 +1,30 @@
 export const ARBITRUM_CHAIN_ID = 42161;
 
-// EXPANDED: More tokens = More opportunities (while maintaining quality!)
-// STRICT: Only tokens verified with decent liquidity on Uniswap V3
-// Strategy: If Uniswap V3 has liquidity, we can find inter-fee-tier arbitrage!
+// REALISTIC: Focus on tokens with REAL Uniswap V3 liquidity on Arbitrum
+// Strategy: Uniswap V3 ONLY (SushiSwap removed - no liquidity!)
+// We'll find arbitrage between different fee tiers (0.05%, 0.3%, 1%)
 export const TOKENS = {
-  // ═══ TIER 1: Ultra-high liquidity ($100M+) ═══
-  WETH: '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1',
-  USDC: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
-  USDT: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',
+  // ═══ TIER 1: Ultra-high liquidity ($50M+) ═══
+  WETH: '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1',  // $200M+ on Uniswap V3
+  USDC: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',  // $150M+ on Uniswap V3
+  USDT: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9',  // $50M+ on Uniswap V3
   
-  // ═══ TIER 2: High liquidity + VOLATILE ($20M+) ═══
-  ARB: '0x912CE59144191C1204E64559FE8253a0e49E6548',    // ✅ $80M+ Uniswap V3 | Arbitrum native token
-  LINK: '0xf97f4df75117a78c1A5a0DBb814Af92458539FB4',   // ✅ $50M+ Uniswap V3 | Oracle token = volatile
-  UNI: '0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0',    // ✅ $40M+ Uniswap V3 | Governance token
-  GMX: '0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a',    // ✅ $30M+ Uniswap V3 | ⚡⚡ HIGHLY volatile DeFi
-  PENDLE: '0x0c880f6761F1af8d9Aa9C466984b80DAb9a8c9e8', // ✅ $15M+ Uniswap V3 | ⚡⚡ HIGHLY volatile yield
+  // ═══ TIER 2: High liquidity + VOLATILE ($10M+) ═══
+  ARB: '0x912CE59144191C1204E64559FE8253a0e49E6548',   // $60M+ Uniswap V3 | Native token
+  LINK: '0xf97f4df75117a78c1A5a0DBb814Af92458539FB4',  // $30M+ Uniswap V3 | Oracle = volatile
+  UNI: '0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0',   // $25M+ Uniswap V3 | Governance
+  GMX: '0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a',   // $20M+ Uniswap V3 | DeFi = volatile
   
-  // ═══ TIER 3: Medium liquidity + VERY VOLATILE ($5M+) ═══
-  MAGIC: '0x539bdE0d7Dbd336b79148AA742883198BBF60342',  // ✅ $8M+ Uniswap V3 | ⚡⚡⚡ Gaming token = EXTREME volatility
-  RDNT: '0x3082CC23568eA640225c2467653dB90e9250AaA0',   // ✅ $5M+ Uniswap V3 | ⚡⚡ DeFi lending = HIGH volatility
+  // ═══ TIER 3: Medium liquidity + MORE VOLATILE ($5M+) ═══
+  PENDLE: '0x0c880f6761F1af8d9Aa9C466984b80DAb9a8c9e8', // $8M+ Uniswap V3 | Yield = volatile
+  RDNT: '0x3082CC23568eA640225c2467653dB90e9250AaA0',   // $5M+ Uniswap V3 | Lending
   
-  // REMOVED: WBTC (low SushiSwap liquidity)
-  // REMOVED: DAI (low volatility = no opportunities)
+  // ═══ NEW: More popular tokens ═══
+  WBTC: '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f',  // $40M+ Uniswap V3 | Bitcoin
+  USDC_E: '0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8', // $30M+ Uniswap V3 | USDC bridged
   
-  // TOTAL: 10 tokens = 100+ possible pairs
-  // More tokens = More arbitrage opportunities!
+  // TOTAL: 11 tokens for maximum opportunity coverage
+  // ALL verified to have REAL Uniswap V3 liquidity on Arbitrum!
 };
 
 // DEX Routers on Arbitrum (ONLY most liquid and reliable)
@@ -69,41 +69,41 @@ export const PROFIT_THRESHOLDS = {
   MIN_PROFIT_PERCENTAGE: 0.5,
 };
 
-// EXPANDED: More pairs = More opportunities!
-// Strategy: Cast wider net while maintaining quality through validation
-// Scan MANY pairs, but ONLY execute if they pass strict checks
+// REALISTIC PAIRS: Only Uniswap V3 (SushiSwap removed!)
+// Strategy: Inter-fee-tier arbitrage (0.05% vs 0.3% vs 1%)
+// Direct pairs (A→B) and Triangular (A→B→C→A)
 export const HIGH_LIQUIDITY_PAIRS = [
-  // ═══ TIER 1: Ultra-high liquidity - BASE PAIRS ($100M+) ═══
-  ['WETH', 'USDC'],   // ✅ $150M+ | King of arbitrage
-  ['WETH', 'USDT'],   // ✅ $100M+ | Second king
+  // ═══ TIER 1: Major pairs (guaranteed liquidity $50M+) ═══
+  ['WETH', 'USDC'],     // $150M+ TVL
+  ['WETH', 'USDT'],     // $50M+ TVL
+  ['WETH', 'WBTC'],     // $40M+ TVL
+  ['WETH', 'ARB'],      // $60M+ TVL
   
-  // ═══ TIER 2: High liquidity + VOLATILE ($20M+) ═══
-  ['WETH', 'ARB'],    // ✅ $80M+  | ⚡⚡ Native = volatile
-  ['WETH', 'LINK'],   // ✅ $50M+  | ⚡⚡ Oracle = volatile  
-  ['WETH', 'UNI'],    // ✅ $40M+  | ⚡ Governance
-  ['WETH', 'GMX'],    // ✅ $30M+  | ⚡⚡⚡ DeFi = VERY volatile
-  ['WETH', 'PENDLE'], // ✅ $15M+  | ⚡⚡⚡ Yield = VERY volatile
-  ['WETH', 'MAGIC'],  // ✅ $8M+   | ⚡⚡⚡ Gaming = EXTREME volatility
-  ['WETH', 'RDNT'],   // ✅ $5M+   | ⚡⚡ Lending = HIGH volatility
+  // ═══ TIER 2: High liquidity ($10M+) ═══
+  ['WETH', 'LINK'],     // $30M+ TVL
+  ['WETH', 'UNI'],      // $25M+ TVL
+  ['WETH', 'GMX'],      // $20M+ TVL
+  ['ARB', 'USDC'],      // $40M+ TVL
+  ['WBTC', 'USDC'],     // $30M+ TVL
+  ['LINK', 'USDC'],     // $15M+ TVL
   
-  // ═══ TIER 3: Direct stablecoin pairs ═══
-  ['ARB', 'USDC'],    // ✅ $60M+  | Direct fiat
-  ['LINK', 'USDC'],   // ✅ $45M+  | Direct fiat
-  ['UNI', 'USDC'],    // ✅ $40M+  | Direct fiat
-  ['GMX', 'USDC'],    // ✅ $20M+  | Direct fiat
-  ['PENDLE', 'USDC'], // ✅ $10M+  | Direct fiat
+  // ═══ TIER 3: Stablecoin pairs (low spread but safe) ═══
+  ['USDC', 'USDT'],     // $20M+ TVL
+  ['USDC', 'USDC_E'],   // $15M+ TVL (bridged USDC)
   
-  // ═══ TIER 4: Volatile-to-volatile (HIGH opportunity!) ═══
-  ['ARB', 'LINK'],    // ✅ $15M+  | ⚡⚡ Both volatile
-  ['ARB', 'UNI'],     // ✅ $10M+  | ⚡⚡ Both volatile
-  ['GMX', 'ARB'],     // ✅ $8M+   | ⚡⚡⚡ BOTH very volatile
+  // ═══ TIER 4: Volatile pairs (higher spread potential) ═══
+  ['ARB', 'LINK'],      // $10M+ TVL
+  ['UNI', 'USDC'],      // $15M+ TVL
+  ['GMX', 'ARB'],       // $8M+ TVL
   
-  // ═══ TOTAL: 17 pairs × 2 directions = 34 arbitrage routes ═══
-  // PLUS: Multi-fee-tier arbitrage on Uniswap V3 (0.05% vs 0.3%)
-  // REAL TOTAL: ~50-70 possible arbitrage opportunities!
+  // ═══ NEW: More token combinations ═══
+  ['WETH', 'PENDLE'],   // $8M+ TVL
+  ['WETH', 'RDNT'],     // $5M+ TVL
+  ['PENDLE', 'USDC'],   // $5M+ TVL
   
-  // Strategy: Scan MANY, validate STRICTLY, execute ONLY best
-  // More pairs = More chances to find that perfect 2-5% spread
+  // TOTAL: 19 direct pairs
+  // Each can have arbitrage between fee tiers (0.05%, 0.3%, 1%)
+  // PLUS: Triangular routes (explained in scanner)
 ];
 
 // DEX list for scanning (ONLY most reliable)

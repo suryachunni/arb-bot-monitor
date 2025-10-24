@@ -35,6 +35,7 @@ export class EliteExecutor {
   constructor() {
     this.provider = new ethers.providers.JsonRpcProvider(config.network.rpcUrl);
     this.wallet = new ethers.Wallet(config.wallet.privateKey, this.provider);
+    this.flashbots = new FlashbotsProvider(config.network.rpcUrl, config.wallet.privateKey);
     
     // Initialize contract
     const contractAddress = process.env.CONTRACT_ADDRESS || '';

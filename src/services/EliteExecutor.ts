@@ -21,6 +21,7 @@ export class EliteExecutor {
   private provider: ethers.providers.JsonRpcProvider;
   private wallet: ethers.Wallet;
   private contract: ethers.Contract;
+  private flashbots: FlashbotsProvider;
   
   private stats = {
     simulated: 0,
@@ -36,6 +37,7 @@ export class EliteExecutor {
   constructor() {
     this.provider = new ethers.providers.JsonRpcProvider(config.network.rpcUrl);
     this.wallet = new ethers.Wallet(config.wallet.privateKey, this.provider);
+    this.flashbots = new FlashbotsProvider(config.network.rpcUrl, config.wallet.privateKey);
     
     // Initialize contract
     const contractAddress = process.env.CONTRACT_ADDRESS || '';
@@ -101,25 +103,24 @@ export class EliteExecutor {
         : ethers.utils.parseUnits('0.02', 'gwei');
       const priorityFee = basePriorityFee.add(bonusFee);
       
-      // Prepare transaction
-      const tx = await this.contract.executeArbitrage(
-        opportunity.path[0].tokenIn,
-        ethers.utils.parseUnits(opportunity.optimalSize.toString(), 6), // Assuming USDC/USDT base
-        0, // DEX enum (simplified)
-        1,
-        '0x',
-        '0x',
-        0, // Will be calculated properly in production
-        0,
+      // STEP 3: Build transaction request
+      const txData = this.contract.interface.encodeFunctionData('executeArbitrage', [
+        opportunity.path[0],
+        ethers.utils.parseUnits(opportunity.tradeSize.toString(), 6),
+        0, 1, '0x', '0x', 0, 0,
         Math.floor(Date.now() / 1000) + 300,
-        {
-          maxPriorityFeePerGas: priorityFee,
-          maxFeePerGas: ethers.utils.parseUnits('0.1', 'gwei'),
-          gasLimit: 500000,
-        }
-      );
+      ]);
       
-      logger.info(`📡 Transaction sent: ${tx.hash}`);
+      // STEP 4: Send with MEV PROTECTION!
+      logger.info('📤 Sending transaction with MEV protection...');
+      
+      const tx = await this.flashbots.sendProtectedTransaction({
+        to: this.contract.address,
+        data: txData,
+        gasLimit: 500000,
+      });
+      
+      logger.info(`📡 Protected transaction sent: ${tx.hash}`);
       logger.info('⏳ Waiting for confirmation...');
       
       const receipt = await tx.wait();
@@ -172,8 +173,8 @@ export class EliteExecutor {
     try {
       // Use eth_call to simulate without sending transaction
       await this.contract.callStatic.executeArbitrage(
-        opportunity.path[0].tokenIn,
-        ethers.utils.parseUnits(opportunity.optimalSize.toString(), 6),
+        opportunity.path[0],
+        ethers.utils.parseUnits(opportunity.tradeSize.toString(), 6),
         0,
         1,
         '0x',

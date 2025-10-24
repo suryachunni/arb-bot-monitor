@@ -1,4 +1,4 @@
-import { EliteScanner, EliteOpportunity } from './services/EliteScanner';
+import { AggressiveScanner, AggressiveOpportunity } from './services/AggressiveScanner';
 import { EliteExecutor } from './services/EliteExecutor';
 import { SimpleTelegramBot } from './services/SimpleTelegramBot';
 import { logger } from './utils/logger';
@@ -23,7 +23,7 @@ dotenv.config();
  */
 
 class RealArbitrageBot {
-  private scanner: EliteScanner;
+  private scanner: AggressiveScanner;
   private executor: EliteExecutor;
   private telegram: SimpleTelegramBot;
   
@@ -44,7 +44,7 @@ class RealArbitrageBot {
   constructor() {
     const rpcUrl = process.env.RPC_URL || process.env.WS_RPC_URL || config.network.rpcUrl;
     
-    this.scanner = new EliteScanner(rpcUrl);
+    this.scanner = new AggressiveScanner(rpcUrl);
     this.executor = new EliteExecutor();
     this.telegram = new SimpleTelegramBot();
     
@@ -114,7 +114,7 @@ class RealArbitrageBot {
       logger.info(`🔍 [Scan #${this.stats.totalScans}] Starting market scan...`);
       
       // ELITE scan - only best opportunities
-      const opportunities = await this.scanner.scanElite();
+      const opportunities = await this.scanner.scanAggressive();
       
       const scanTime = Date.now() - scanStartTime;
       logger.info(`✅ Scan complete in ${scanTime}ms | Found ${opportunities.length} opportunities`);
@@ -153,11 +153,11 @@ class RealArbitrageBot {
         const opp = top3[i];
         message += `*${i+1}. ${opp.path.join('→')}* (${opp.spread.toFixed(2)}%)\n`;
         message += `   Type: ${opp.type}\n`;
-        message += `   Trade: $${opp.optimalSize.toLocaleString()}\n`;
+        message += `   Trade: $${opp.tradeSize.toLocaleString()}\n`;
         message += `   NET Profit: *$${opp.netProfit.toFixed(2)}*\n`;
         message += `   Confidence: ${opp.confidence}%\n`;
-        message += `   Priority: ${opp.priority}\n`;
-        message += `   Fail Risk: ${opp.failureRisk}%\n\n`;
+        message += `   Priority: ${opp.confidence}\n`;
+        message += `   Fail Risk: ${opp.priceImpact}%\n\n`;
       }
       
       if (opportunities.length > 3) {
@@ -188,7 +188,7 @@ class RealArbitrageBot {
             `✅ *TRADE SUCCESSFUL!*\n\n` +
             `${best.path.join(' → ')}\n` +
             `Spread: ${best.spread.toFixed(2)}%\n` +
-            `Trade size: $${best.optimalSize.toLocaleString()}\n` +
+            `Trade size: $${best.tradeSize.toLocaleString()}\n` +
             `Expected profit: $${best.netProfit.toFixed(2)}\n` +
             `*Actual profit: $${(result.actualProfit || 0).toFixed(2)}*\n` +
             `Tx: \`${result.txHash}\`\n\n` +

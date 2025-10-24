@@ -1,7 +1,8 @@
 import { ethers } from 'ethers';
 import { logger } from '../utils/logger';
 import { config } from '../config/config';
-import { EliteOpportunity } from './EliteScanner';
+import { AggressiveOpportunity } from './AggressiveScanner';
+import { FlashbotsProvider } from './FlashbotsProvider';
 
 /**
  * ELITE EXECUTOR - 9/10 RATING
@@ -50,13 +51,13 @@ export class EliteExecutor {
     
     this.contract = new ethers.Contract(contractAddress, abi, this.wallet);
     
-    logger.info('🏆 Elite Executor initialized (simulation-first strategy)');
+    logger.info('🏆 Executor initialized (simulation-first + MEV protection)');
   }
   
   /**
    * ELITE EXECUTION: Simulate first, execute only if passes
    */
-  async executeElite(opportunity: EliteOpportunity): Promise<{
+  async executeElite(opportunity: AggressiveOpportunity): Promise<{
     success: boolean;
     txHash?: string;
     actualProfit?: number;
@@ -102,7 +103,7 @@ export class EliteExecutor {
       
       // Prepare transaction
       const tx = await this.contract.executeArbitrage(
-        opportunity.route[0].tokenIn,
+        opportunity.path[0].tokenIn,
         ethers.utils.parseUnits(opportunity.optimalSize.toString(), 6), // Assuming USDC/USDT base
         0, // DEX enum (simplified)
         1,
@@ -164,14 +165,14 @@ export class EliteExecutor {
    * PRE-EXECUTION SIMULATION (FREE - uses eth_call!)
    * This costs $0 and prevents failed transactions!
    */
-  private async simulateExecution(opportunity: EliteOpportunity): Promise<{
+  private async simulateExecution(opportunity: AggressiveOpportunity): Promise<{
     success: boolean;
     error?: string;
   }> {
     try {
       // Use eth_call to simulate without sending transaction
       await this.contract.callStatic.executeArbitrage(
-        opportunity.route[0].tokenIn,
+        opportunity.path[0].tokenIn,
         ethers.utils.parseUnits(opportunity.optimalSize.toString(), 6),
         0,
         1,

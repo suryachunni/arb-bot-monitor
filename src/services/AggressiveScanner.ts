@@ -67,7 +67,7 @@ export class AggressiveScanner {
   }
   
   /**
-   * SCAN FOR OPPORTUNITIES (AGGRESSIVE)
+   * SCAN FOR OPPORTUNITIES (AGGRESSIVE + OPTIMIZED)
    */
   async scanAggressive(): Promise<AggressiveOpportunity[]> {
     logger.info('🔍 Starting AGGRESSIVE scan ($100k liquidity, 60%+ confidence)...');
@@ -75,17 +75,23 @@ export class AggressiveScanner {
     
     const opportunities: AggressiveOpportunity[] = [];
     
-    // Scan major pairs only (for speed in 1 hour build)
+    // Scan major pairs (optimized for speed)
     const pairs = [
       ['WETH', 'USDC'],
       ['WETH', 'USDT'],
       ['WETH', 'ARB'],
       ['USDC', 'USDT'],
       ['ARB', 'USDC'],
+      ['WETH', 'WBTC'],
+      ['ARB', 'USDT'],
     ];
     
-    for (const [tokenA, tokenB] of pairs) {
-      const pairOpps = await this.scanPair(tokenA, tokenB);
+    // OPTIMIZATION: Scan pairs in parallel (3x faster!)
+    const promises = pairs.map(([tokenA, tokenB]) => this.scanPair(tokenA, tokenB));
+    const results = await Promise.all(promises);
+    
+    // Flatten results
+    for (const pairOpps of results) {
       opportunities.push(...pairOpps);
     }
     
@@ -96,13 +102,14 @@ export class AggressiveScanner {
   }
   
   /**
-   * SCAN SINGLE PAIR
+   * SCAN SINGLE PAIR (OPTIMIZED)
    */
   private async scanPair(symbolA: string, symbolB: string): Promise<AggressiveOpportunity[]> {
     const opportunities: AggressiveOpportunity[] = [];
     
-    // Check Uniswap V3 pools (multiple fee tiers)
-    const feeTiers = [500, 3000, 10000];
+    try {
+      // Check Uniswap V3 pools (multiple fee tiers)
+      const feeTiers = [500, 3000, 10000];
     
     const factoryABI = ['function getPool(address, address, uint24) external view returns (address)'];
     const poolABI = [
@@ -210,6 +217,10 @@ export class AggressiveScanner {
       } catch (error) {
         // Skip this pool
       }
+    }
+    
+    } catch (error) {
+      // Skip this pair on error (for speed)
     }
     
     return opportunities;

@@ -71,12 +71,12 @@ export interface EliteOpportunity {
 export class EliteScanner {
   private provider: ethers.providers.JsonRpcProvider;
   
-  // Minimum thresholds (STRICT for real money!)
-  private readonly MIN_LIQUIDITY = 2_000_000; // $2M minimum (as requested!)
-  private readonly MIN_CONFIDENCE = 85; // 85%+ only
-  private readonly MAX_PRICE_IMPACT = 3; // 3% max
-  private readonly MIN_NET_PROFIT = 50; // $50 minimum
-  private readonly MAX_SPREAD = 10; // 10% max (above = fake data)
+  // Minimum thresholds (BALANCED for real opportunities!)
+  private readonly MIN_LIQUIDITY = 500_000; // $500k minimum (SWEET SPOT!)
+  private readonly MIN_CONFIDENCE = 75; // 75%+ (more opportunities)
+  private readonly MAX_PRICE_IMPACT = 5; // 5% max (balanced)
+  private readonly MIN_NET_PROFIT = 30; // $30 minimum (more realistic)
+  private readonly MAX_SPREAD = 15; // 15% max (catch more opportunities)
   
   private readonly UNISWAP_V3_QUOTER = '0x61fFE014bA17989E743c5F6cB21bF9697530B21e';
   private readonly UNISWAP_V3_FACTORY = '0x1F98431c8aD98523631AE4a59f267346ea31F984';

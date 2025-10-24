@@ -1,10 +1,9 @@
 import { ethers } from 'ethers';
 import { logger } from '../utils/logger';
 import { TOKENS } from '../config/constants';
-import { MultiRpcProvider } from './MultiRpcProvider';
 
 /**
- * ELITE SCANNER - OPTIMIZED FOR REAL OPPORTUNITIES
+ * ELITE SCANNER - 9/10 RATING
  * 
  * STRICT RULES FOR REAL MONEY:
  * 1. Only pools with >$2M liquidity (NO garbage!)
@@ -69,11 +68,8 @@ export interface EliteOpportunity {
   timestamp: number;
 }
 
-import { MultiRpcProvider } from './MultiRpcProvider';
-
 export class EliteScanner {
   private provider: ethers.providers.JsonRpcProvider;
-  private multiRpc: MultiRpcProvider;
   
   // Minimum thresholds (BALANCED for real opportunities!)
   private readonly MIN_LIQUIDITY = 500_000; // $500k minimum (SWEET SPOT!)
@@ -95,16 +91,7 @@ export class EliteScanner {
   
   constructor(rpcUrl: string) {
     this.provider = new ethers.providers.JsonRpcProvider(rpcUrl);
-    
-    // Multi-RPC for reliability
-    const rpcUrls = [
-      rpcUrl,
-      'https://arbitrum.llamarpc.com',
-      'https://arb1.arbitrum.io/rpc',
-    ];
-    this.multiRpc = new MultiRpcProvider(rpcUrls);
-    
-    logger.info('🏆 Elite Scanner initialized (OPTIMIZED - $500k liquidity, multi-RPC)');
+    logger.info('🏆 Elite Scanner initialized (OPTIMIZED - $500k liquidity, balanced filters)');
     this.initCache();
   }
   
@@ -126,7 +113,7 @@ export class EliteScanner {
    */
   async scanElite(): Promise<EliteOpportunity[]> {
     const startTime = Date.now();
-    logger.info('⚡ Starting ELITE scan (>$2M liquidity only, 85%+ confidence)...');
+    logger.info('⚡ Starting OPTIMIZED scan (>$500k liquidity, 75%+ confidence)...');
     
     const opportunities: EliteOpportunity[] = [];
     

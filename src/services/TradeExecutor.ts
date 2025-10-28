@@ -6,9 +6,11 @@ import { DEX_ROUTERS } from '../config/constants';
 import { PriceScanner } from './PriceScanner';
 
 const FLASH_LOAN_ARBITRAGE_ABI = [
-  'function executeArbitrage(tuple(address tokenBorrow, address tokenTarget, uint256 amountBorrow, address dexBuy, address dexSell, uint24 feeBuy, uint24 feeSell, uint256 minProfit, uint256 deadline) params) external',
+  'function executeArbitrage(tuple(address tokenBorrow, address tokenTarget, uint256 amountBorrow, uint8 dexBuy, uint8 dexSell, bytes dexDataBuy, bytes dexDataSell, uint256 minAmountOutBuy, uint256 minAmountOutSell, uint256 minProfit, uint256 estimatedGasCost, uint256 deadline) params) external',
   'function owner() view returns (address)',
   'function profitReceiver() view returns (address)',
+  'function getStatistics() view returns (uint256 executed, uint256 profit, uint256 gasUsed, uint256 avgGasPerTrade)',
+  'function getConfiguration() view returns (uint256 minProfit, uint256 maxSlippage, address receiver, bool stopped)',
 ];
 
 const ERC20_ABI = [
@@ -66,19 +68,25 @@ export class TradeExecutor {
       // Determine loan token and target token based on direction
       let tokenBorrow: string;
       let tokenTarget: string;
-      let dexBuy: string;
-      let dexSell: string;
+      let dexBuyType: number;
+      let dexSellType: number;
+      let dexDataBuy: string;
+      let dexDataSell: string;
       
       if (opportunity.direction === 'AtoB') {
         tokenBorrow = opportunity.tokenAAddress;
         tokenTarget = opportunity.tokenBAddress;
-        dexBuy = this.getDexRouter(opportunity.buyDex);
-        dexSell = this.getDexRouter(opportunity.sellDex);
+        dexBuyType = this.getDexType(opportunity.buyDex);
+        dexSellType = this.getDexType(opportunity.sellDex);
+        dexDataBuy = this.encodeDexData(opportunity.buyDex, opportunity.buyFee);
+        dexDataSell = this.encodeDexData(opportunity.sellDex, opportunity.sellFee);
       } else {
         tokenBorrow = opportunity.tokenBAddress;
         tokenTarget = opportunity.tokenAAddress;
-        dexBuy = this.getDexRouter(opportunity.buyDex);
-        dexSell = this.getDexRouter(opportunity.sellDex);
+        dexBuyType = this.getDexType(opportunity.buyDex);
+        dexSellType = this.getDexType(opportunity.sellDex);
+        dexDataBuy = this.encodeDexData(opportunity.buyDex, opportunity.buyFee);
+        dexDataSell = this.encodeDexData(opportunity.sellDex, opportunity.sellFee);
       }
 
       // Get token decimals
@@ -131,16 +139,27 @@ export class TradeExecutor {
 
       logger.info('✅ Prices verified, executing transaction...');
 
-      // Prepare parameters
+      // Calculate slippage protection (0.5% max slippage)
+      const slippageBasisPoints = 50; // 0.5%
+      const minAmountOutBuy = verifiedBuyPrice.mul(10000 - slippageBasisPoints).div(10000);
+      const minAmountOutSell = verifiedSellPrice.mul(10000 - slippageBasisPoints).div(10000);
+
+      // Estimate gas cost
+      const estimatedGasCost = gasPrice.mul(500000); // Estimate 500k gas
+
+      // Prepare parameters for new contract interface
       const params = {
         tokenBorrow,
         tokenTarget,
         amountBorrow: loanAmount,
-        dexBuy,
-        dexSell,
-        feeBuy: opportunity.buyFee || 3000,
-        feeSell: opportunity.sellFee || 3000,
+        dexBuy: dexBuyType,
+        dexSell: dexSellType,
+        dexDataBuy,
+        dexDataSell,
+        minAmountOutBuy,
+        minAmountOutSell,
         minProfit,
+        estimatedGasCost,
         deadline: Math.floor(Date.now() / 1000) + 300, // 5 minutes
       };
 
@@ -218,16 +237,35 @@ export class TradeExecutor {
   }
 
   /**
-   * Get DEX router address
+   * Get DEX type enum value
    */
-  private getDexRouter(dexName: string): string {
+  private getDexType(dexName: string): number {
     switch (dexName) {
       case 'UniswapV3':
-        return DEX_ROUTERS.UNISWAP_V3;
+        return 0; // DEXType.UNISWAP_V3
       case 'SushiSwap':
-        return DEX_ROUTERS.SUSHISWAP;
+        return 1; // DEXType.SUSHISWAP
+      case 'Balancer':
+        return 2; // DEXType.BALANCER
       default:
         throw new Error(`Unknown DEX: ${dexName}`);
+    }
+  }
+
+  /**
+   * Encode DEX-specific data
+   */
+  private encodeDexData(dexName: string, fee?: number): string {
+    switch (dexName) {
+      case 'UniswapV3':
+        return ethers.utils.defaultAbiCoder.encode(['uint24'], [fee || 3000]);
+      case 'SushiSwap':
+        return '0x'; // No additional data needed
+      case 'Balancer':
+        // In production, you'd need the actual pool ID
+        return ethers.utils.defaultAbiCoder.encode(['bytes32'], ['0x0000000000000000000000000000000000000000000000000000000000000000']);
+      default:
+        return '0x';
     }
   }
 

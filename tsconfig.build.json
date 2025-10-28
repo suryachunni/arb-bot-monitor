@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "node_modules",
+    "test-*.ts",
+    "src/services/FastPriceScanner.ts",
+    "src/services/HyperFastScanner.ts",
+    "src/services/ProductionExecutor.ts",
+    "src/services/ProductionPriceScanner.ts",
+    "src/services/UltraFastScanner.ts",
+    "src/index-ultra-fast.ts"
+  ]
+}

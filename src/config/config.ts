@@ -35,7 +35,7 @@ export const config = {
   
   // Monitoring
   monitoring: {
-    scanIntervalMs: parseInt(process.env.SCAN_INTERVAL_MS || '10000'),
+    scanIntervalMs: parseInt(process.env.SCAN_INTERVAL_MS || '600000'), // 10 minutes
     maxSlippagePercent: parseFloat(process.env.MAX_SLIPPAGE_PERCENT || '0.5'),
     gasLimitMultiplier: parseFloat(process.env.GAS_LIMIT_MULTIPLIER || '1.2'),
   },

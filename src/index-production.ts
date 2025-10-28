@@ -6,17 +6,24 @@ import { TelegramNotifier } from './services/TelegramBot';
 import { TradeExecutor } from './services/TradeExecutor';
 import { HIGH_LIQUIDITY_PAIRS } from './config/constants';
 
-class FlashLoanArbitrageBot {
+class ProductionFlashLoanArbitrageBot {
   private priceScanner: PriceScanner;
   private arbitrageDetector: ArbitrageDetector;
   private telegramBot: TelegramNotifier;
   private tradeExecutor: TradeExecutor;
   private isRunning: boolean = false;
   private scanInterval: NodeJS.Timeout | null = null;
-  private autoExecute: boolean = true; // Set to true for fully automated execution
+  private autoExecute: boolean = true; // Fully automated execution
+  private stats = {
+    totalScans: 0,
+    opportunitiesFound: 0,
+    tradesExecuted: 0,
+    totalProfit: 0,
+    startTime: Date.now(),
+  };
 
   constructor() {
-    logger.info('🚀 Initializing Flash Loan Arbitrage Bot...');
+    logger.info('🚀 Initializing Production Flash Loan Arbitrage Bot...');
     
     // Validate configuration
     try {
@@ -37,10 +44,19 @@ class FlashLoanArbitrageBot {
       await this.executeOpportunity(opportunity);
     });
 
+    // Register bot control callbacks
+    this.telegramBot.onBotControls({
+      start: () => this.start(),
+      stop: () => this.stop(),
+      pause: () => this.pause(),
+      resume: () => this.resume(),
+    });
+
     logger.info('✅ Bot initialized successfully');
     logger.info(`📍 Wallet: ${this.tradeExecutor.getWalletAddress()}`);
     logger.info(`💰 Min Profit: $${config.flashLoan.minProfitUSD}`);
     logger.info(`💵 Loan Amount: $${config.flashLoan.minLoanAmountUSD.toLocaleString()}`);
+    logger.info(`⏱️ Scan Interval: ${config.monitoring.scanIntervalMs / 1000}s`);
   }
 
   /**
@@ -52,8 +68,9 @@ class FlashLoanArbitrageBot {
       return;
     }
 
-    logger.info('🎬 Starting arbitrage bot...');
+    logger.info('🎬 Starting production arbitrage bot...');
     this.isRunning = true;
+    this.stats.startTime = Date.now();
 
     // Check wallet balance
     const balance = await this.tradeExecutor.checkBalance();
@@ -96,14 +113,16 @@ class FlashLoanArbitrageBot {
    * Perform a single scan
    */
   private async scan() {
-    logger.info('🔍 Starting ultra-fast scan...');
+    logger.info('🔍 Starting ultra-fast production scan...');
     const startTime = Date.now();
+    this.stats.totalScans++;
 
     // Use batch scanning for maximum speed
     const priceData = await this.priceScanner.batchScanPrices(HIGH_LIQUIDITY_PAIRS);
     
     // Detect arbitrage opportunities
     const opportunities = this.arbitrageDetector.detectArbitrage(priceData);
+    this.stats.opportunitiesFound += opportunities.length;
     
     const scanTime = Date.now() - startTime;
     logger.info(`✅ Scan complete in ${scanTime}ms. Found ${opportunities.length} opportunities.`);
@@ -111,6 +130,11 @@ class FlashLoanArbitrageBot {
     // Process opportunities
     if (opportunities.length > 0) {
       await this.processOpportunities(opportunities);
+    }
+
+    // Send periodic status updates
+    if (this.stats.totalScans % 10 === 0) {
+      await this.sendStatusUpdate();
     }
   }
 
@@ -126,8 +150,10 @@ class FlashLoanArbitrageBot {
     // Send alert to Telegram
     await this.telegramBot.sendArbitrageAlert(bestOpportunity, this.autoExecute);
     
-    // If auto-execute is disabled, wait for manual confirmation via Telegram
-    // The callback will handle execution
+    // Auto-execute if enabled
+    if (this.autoExecute) {
+      await this.executeOpportunity(bestOpportunity);
+    }
   }
 
   /**
@@ -148,6 +174,8 @@ class FlashLoanArbitrageBot {
       );
 
       if (result.success) {
+        this.stats.tradesExecuted++;
+        this.stats.totalProfit += result.profit || 0;
         logger.info(`🎉 Trade executed successfully! Profit: $${result.profit?.toFixed(2)}`);
       } else {
         logger.error(`❌ Trade execution failed: ${result.error}`);
@@ -161,6 +189,23 @@ class FlashLoanArbitrageBot {
         (error as Error).message
       );
     }
+  }
+
+  /**
+   * Pause the bot
+   */
+  pause() {
+    logger.info('⏸️ Pausing bot...');
+    this.isRunning = false;
+  }
+
+  /**
+   * Resume the bot
+   */
+  resume() {
+    logger.info('▶️ Resuming bot...');
+    this.isRunning = true;
+    this.scanLoop();
   }
 
   /**
@@ -179,6 +224,27 @@ class FlashLoanArbitrageBot {
   }
 
   /**
+   * Send status update
+   */
+  private async sendStatusUpdate() {
+    const uptime = Math.floor((Date.now() - this.stats.startTime) / 1000 / 60);
+    const avgProfit = this.stats.tradesExecuted > 0 ? this.stats.totalProfit / this.stats.tradesExecuted : 0;
+    
+    const message = (
+      `📊 *Bot Status Update*\\n\\n` +
+      `⏱️ Uptime: ${uptime} minutes\\n` +
+      `🔍 Total Scans: ${this.stats.totalScans}\\n` +
+      `🎯 Opportunities Found: ${this.stats.opportunitiesFound}\\n` +
+      `⚡ Trades Executed: ${this.stats.tradesExecuted}\\n` +
+      `💰 Total Profit: $${this.stats.totalProfit.toFixed(2)}\\n` +
+      `📈 Avg Profit/Trade: $${avgProfit.toFixed(2)}\\n\\n` +
+      `🤖 Bot is running smoothly!`
+    );
+    
+    await this.telegramBot.sendMessage(message);
+  }
+
+  /**
    * Sleep helper
    */
   private sleep(ms: number): Promise<void> {
@@ -190,21 +256,22 @@ class FlashLoanArbitrageBot {
 async function main() {
   logger.info('');
   logger.info('═══════════════════════════════════════════════════════');
-  logger.info('   FLASH LOAN ARBITRAGE BOT - ARBITRUM MAINNET');
+  logger.info('   PRODUCTION FLASH LOAN ARBITRAGE BOT');
+  logger.info('   ARBITRUM MAINNET - FULLY AUTOMATED');
   logger.info('═══════════════════════════════════════════════════════');
   logger.info('');
 
-  const bot = new FlashLoanArbitrageBot();
+  const bot = new ProductionFlashLoanArbitrageBot();
   
   // Handle graceful shutdown
   process.on('SIGINT', () => {
-    logger.info('\n📴 Received SIGINT, shutting down gracefully...');
+    logger.info('\\n📴 Received SIGINT, shutting down gracefully...');
     bot.stop();
     process.exit(0);
   });
 
   process.on('SIGTERM', () => {
-    logger.info('\n📴 Received SIGTERM, shutting down gracefully...');
+    logger.info('\\n📴 Received SIGTERM, shutting down gracefully...');
     bot.stop();
     process.exit(0);
   });

@@ -32,10 +32,7 @@ const DEXS = {
     name: 'SushiSwap',
     factory: '0xc35DADB65012eC5796536bD9864eD8773aBc74C4',
   },
-  CAMELOT: {
-    name: 'Camelot',
-    factory: '0x6EcCab422D763aC031210895C81787E87B43A652',
-  },
+  // CAMELOT REMOVED - Most pools have insufficient liquidity causing false price signals
 };
 
 const QUOTER_ABI = ['function quoteExactInputSingle(address,address,uint24,uint256,uint160) external returns (uint256)'];
@@ -142,9 +139,6 @@ class MonitoringBot {
       const sushiPrice = await this.getV2Price(DEXS.SUSHISWAP.factory, 'SushiSwap', pair.token0, pair.token1, amount);
       if (sushiPrice.success) prices.push(sushiPrice);
 
-      const camelotPrice = await this.getV2Price(DEXS.CAMELOT.factory, 'Camelot', pair.token0, pair.token1, amount);
-      if (camelotPrice.success) prices.push(camelotPrice);
-
       if (prices.length < 2) continue;
       validPairs++;
 
@@ -158,9 +152,7 @@ class MonitoringBot {
 
           const returnQuote = buyDex.dex === 'Uniswap V3' 
             ? await this.getUniV3Price(pair.token1, pair.token0, buyDex.amountOut)
-            : buyDex.dex === 'SushiSwap'
-            ? await this.getV2Price(DEXS.SUSHISWAP.factory, 'SushiSwap', pair.token1, pair.token0, buyDex.amountOut)
-            : await this.getV2Price(DEXS.CAMELOT.factory, 'Camelot', pair.token1, pair.token0, buyDex.amountOut);
+            : await this.getV2Price(DEXS.SUSHISWAP.factory, 'SushiSwap', pair.token1, pair.token0, buyDex.amountOut);
 
           if (!returnQuote.success) continue;
 

@@ -12,17 +12,28 @@ const RPC_URL = 'https://arb1.arbitrum.io/rpc';
 const TELEGRAM_BOT_TOKEN = '7990738699:AAFfoPA4VGO_90DyQauHNiwbHnfwOTmfbgU';
 const TELEGRAM_CHAT_ID = '8305086804';
 
-const SCAN_INTERVAL_MINUTES = 10;
+const SCAN_INTERVAL_MINUTES = 1; // ULTRA AGGRESSIVE: Scan every 1 minute!
 
 const TOKENS = {
-  // TOP LIQUIDITY TOKENS (Core pairs)
+  // TIER 1: CORE LIQUIDITY (Must have)
   WETH: { address: '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1', decimals: 18, symbol: 'WETH' },
   ARB: { address: '0x912CE59144191C1204E64559FE8253a0e49E6548', decimals: 18, symbol: 'ARB' },
   USDC: { address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', decimals: 6, symbol: 'USDC' },
+  USDT: { address: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9', decimals: 6, symbol: 'USDT' },
   
-  // VOLATILE TOKENS (High opportunity)
+  // TIER 2: MAJOR DEFI (High liquidity + volatility)
   GMX: { address: '0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a', decimals: 18, symbol: 'GMX' },
+  LINK: { address: '0xf97f4df75117a78c1A5a0DBb814Af92458539FB4', decimals: 18, symbol: 'LINK' },
+  UNI: { address: '0xFa7F8980b0f1E64A2062791cc3b0871572f1F7f0', decimals: 18, symbol: 'UNI' },
+  
+  // TIER 3: VOLATILE OPPORTUNITIES (Gaming/Meme)
+  MAGIC: { address: '0x539bdE0d7Dbd336b79148AA742883198BBF60342', decimals: 18, symbol: 'MAGIC' },
   PENDLE: { address: '0x0c880f6761F1af8d9Aa9C466984b80DAb9a8c9e8', decimals: 18, symbol: 'PENDLE' },
+  GRAIL: { address: '0x3d9907F9a368ad0a51Be60f7Da3b97cf940982D8', decimals: 18, symbol: 'GRAIL' },
+  
+  // TIER 4: HIGH VOLATILITY (More risk, more opportunity)
+  RDNT: { address: '0x3082CC23568eA640225c2467653dB90e9250AaA0', decimals: 18, symbol: 'RDNT' },
+  JONES: { address: '0x10393c20975cF177a3513071bC110f7962CD67da', decimals: 18, symbol: 'JONES' },
 };
 
 const DEXS = {
@@ -118,14 +129,29 @@ class MonitoringBot {
     console.log(`📦 Block: #${block.toLocaleString()}`);
 
     const pairs = [
-      // TOP 3 CORE PAIRS (Best liquidity)
+      // TIER 1: CORE PAIRS (Highest liquidity)
       { token0: TOKENS.WETH, token1: TOKENS.ARB, label: 'WETH/ARB' },
       { token0: TOKENS.WETH, token1: TOKENS.USDC, label: 'WETH/USDC' },
       { token0: TOKENS.ARB, token1: TOKENS.USDC, label: 'ARB/USDC' },
+      { token0: TOKENS.WETH, token1: TOKENS.USDT, label: 'WETH/USDT' },
       
-      // VOLATILE PAIRS (High opportunity)
+      // TIER 2: MAJOR DEFI PAIRS (Good liquidity + volatility)
       { token0: TOKENS.WETH, token1: TOKENS.GMX, label: 'WETH/GMX' },
+      { token0: TOKENS.WETH, token1: TOKENS.LINK, label: 'WETH/LINK' },
+      { token0: TOKENS.WETH, token1: TOKENS.UNI, label: 'WETH/UNI' },
+      { token0: TOKENS.GMX, token1: TOKENS.USDC, label: 'GMX/USDC' },
+      { token0: TOKENS.LINK, token1: TOKENS.USDC, label: 'LINK/USDC' },
+      
+      // TIER 3: VOLATILE PAIRS (High opportunity potential)
+      { token0: TOKENS.WETH, token1: TOKENS.MAGIC, label: 'WETH/MAGIC' },
       { token0: TOKENS.WETH, token1: TOKENS.PENDLE, label: 'WETH/PENDLE' },
+      { token0: TOKENS.WETH, token1: TOKENS.GRAIL, label: 'WETH/GRAIL' },
+      { token0: TOKENS.MAGIC, token1: TOKENS.USDC, label: 'MAGIC/USDC' },
+      
+      // TIER 4: ULTRA VOLATILE (Highest risk/reward)
+      { token0: TOKENS.WETH, token1: TOKENS.RDNT, label: 'WETH/RDNT' },
+      { token0: TOKENS.WETH, token1: TOKENS.JONES, label: 'WETH/JONES' },
+      { token0: TOKENS.RDNT, token1: TOKENS.USDC, label: 'RDNT/USDC' },
     ];
 
     let validPairs = 0;
@@ -168,7 +194,7 @@ class MonitoringBot {
           const gas = 0.5;
           const netProfit = profitFloat - flashFee - gas;
 
-          if (netProfit >= 50) {
+          if (netProfit >= 25) { // AGGRESSIVE: Lower profit threshold to $25
             opportunities.push({
               pair: pair.label,
               buyDex: buyDex.dex,

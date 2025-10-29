@@ -89,11 +89,11 @@ class MonitoringBot {
         try {
           const out = await quoter.callStatic.quoteExactInputSingle(t0.address, t1.address, fee, amount, 0);
           if (out.gt(0)) {
-            // Calculate price: how much USD per token
-            // We're swapping USDC → TOKEN, so price = USDC in / TOKEN out
+            // Calculate price: TOKEN → USDC gives us USD price
+            // price = USDC out / TOKEN in
             const amountInFloat = parseFloat(ethers.utils.formatUnits(amount, t0.decimals));
             const amountOutFloat = parseFloat(ethers.utils.formatUnits(out, t1.decimals));
-            const price = amountInFloat / amountOutFloat; // Inverted!
+            const price = amountOutFloat / amountInFloat; // USDC / TOKEN = USD price
             
             return { success: true, amountOut: out, dex: 'Uniswap V3', fee, price };
           }
@@ -135,11 +135,11 @@ class MonitoringBot {
       const denominator = reserveIn.mul(1000).add(amountInWithFee);
       const amountOut = numerator.div(denominator);
 
-      // Calculate price: how much USD per token
-      // We're swapping USDC → TOKEN, so price = USDC in / TOKEN out
+      // Calculate price: TOKEN → USDC gives us USD price
+      // price = USDC out / TOKEN in
       const amountInFloat = parseFloat(ethers.utils.formatUnits(amount, t0.decimals));
       const amountOutFloat = parseFloat(ethers.utils.formatUnits(amountOut, t1.decimals));
-      const price = amountInFloat / amountOutFloat; // Inverted!
+      const price = amountOutFloat / amountInFloat; // USDC / TOKEN = USD price
 
       return { success: true, amountOut, dex: dexName, liquidityUSD, price };
     } catch (e) {
@@ -155,24 +155,12 @@ class MonitoringBot {
     console.log(`📦 Block: #${block.toLocaleString()}`);
 
     const pairs = [
-      // TIER 1: CORE PAIRS (Highest liquidity) - Normalized to show price in USDC/USDT
-      { token0: TOKENS.USDC, token1: TOKENS.WETH, label: 'WETH/USDC', displayLabel: 'WETH' },
-      { token0: TOKENS.USDC, token1: TOKENS.ARB, label: 'ARB/USDC', displayLabel: 'ARB' },
-      { token0: TOKENS.USDT, token1: TOKENS.WETH, label: 'WETH/USDT', displayLabel: 'WETH' },
-      
-      // TIER 2: MAJOR DEFI PAIRS
-      { token0: TOKENS.USDC, token1: TOKENS.GMX, label: 'GMX/USDC', displayLabel: 'GMX' },
-      { token0: TOKENS.USDC, token1: TOKENS.LINK, label: 'LINK/USDC', displayLabel: 'LINK' },
-      { token0: TOKENS.USDC, token1: TOKENS.UNI, label: 'UNI/USDC', displayLabel: 'UNI' },
-      
-      // TIER 3: VOLATILE PAIRS
-      { token0: TOKENS.USDC, token1: TOKENS.MAGIC, label: 'MAGIC/USDC', displayLabel: 'MAGIC' },
-      { token0: TOKENS.USDC, token1: TOKENS.PENDLE, label: 'PENDLE/USDC', displayLabel: 'PENDLE' },
-      { token0: TOKENS.USDC, token1: TOKENS.GRAIL, label: 'GRAIL/USDC', displayLabel: 'GRAIL' },
-      
-      // TIER 4: ULTRA VOLATILE
-      { token0: TOKENS.USDC, token1: TOKENS.RDNT, label: 'RDNT/USDC', displayLabel: 'RDNT' },
-      { token0: TOKENS.USDC, token1: TOKENS.JONES, label: 'JONES/USDC', displayLabel: 'JONES' },
+      // Use WETH/USDC as base (most liquid), calculate inverse for display
+      { token0: TOKENS.WETH, token1: TOKENS.USDC, label: 'WETH', inverse: true },
+      { token0: TOKENS.ARB, token1: TOKENS.USDC, label: 'ARB', inverse: true },
+      { token0: TOKENS.GMX, token1: TOKENS.USDC, label: 'GMX', inverse: true },
+      { token0: TOKENS.LINK, token1: TOKENS.USDC, label: 'LINK', inverse: true },
+      { token0: TOKENS.UNI, token1: TOKENS.USDC, label: 'UNI', inverse: true },
     ];
 
     let validPairs = 0;
@@ -204,9 +192,10 @@ class MonitoringBot {
       // Store price data for this pair (showing USD price)
       allPairPrices.push({
         pair: pair.label,
-        displayLabel: pair.displayLabel || pair.label,
+        displayLabel: pair.label,
         prices: prices.map(p => ({
           dex: p.dex,
+          // Price is already in USD (USDC out / TOKEN in)
           price: p.price ? `$${p.price.toFixed(2)}` : 'N/A',
           liquidity: p.liquidityUSD ? `$${(p.liquidityUSD / 1000).toFixed(1)}k` : 'Unknown',
         })),

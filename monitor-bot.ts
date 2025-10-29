@@ -9,7 +9,7 @@ import { ethers, Contract, BigNumber } from 'ethers';
 import TelegramBot from 'node-telegram-bot-api';
 
 const RPC_URL = 'https://arb1.arbitrum.io/rpc';
-const TELEGRAM_BOT_TOKEN = '7990738699:AAFfoPA4VGO_90DyQauHNiwbHfBfwOTmfbgU';
+const TELEGRAM_BOT_TOKEN = '7990738699:AAFfoPA4VGO_90DyQauHNiwbHnfwOTmfbgU';
 const TELEGRAM_CHAT_ID = '8305086804';
 
 const SCAN_INTERVAL_MINUTES = 10;

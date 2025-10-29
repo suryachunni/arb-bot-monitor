@@ -15,10 +15,12 @@ const TELEGRAM_CHAT_ID = '8305086804';
 const SCAN_INTERVAL_MINUTES = 10;
 
 const TOKENS = {
+  WETH: { address: '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1', decimals: 18, symbol: 'WETH' },
   USDC: { address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', decimals: 6, symbol: 'USDC' },
   USDT: { address: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9', decimals: 6, symbol: 'USDT' },
-  WETH: { address: '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1', decimals: 18, symbol: 'WETH' },
   ARB: { address: '0x912CE59144191C1204E64559FE8253a0e49E6548', decimals: 18, symbol: 'ARB' },
+  WBTC: { address: '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f', decimals: 8, symbol: 'WBTC' },
+  LINK: { address: '0xf97f4df75117a78c1A5a0DBb814Af92458539FB4', decimals: 18, symbol: 'LINK' },
 };
 
 const DEXS = {
@@ -117,11 +119,12 @@ class MonitoringBot {
     console.log(`📦 Block: #${block.toLocaleString()}`);
 
     const pairs = [
-      { token0: TOKENS.USDC, token1: TOKENS.USDT, label: 'USDC/USDT' },
-      { token0: TOKENS.USDC, token1: TOKENS.WETH, label: 'USDC/WETH' },
       { token0: TOKENS.WETH, token1: TOKENS.ARB, label: 'WETH/ARB' },
+      { token0: TOKENS.WETH, token1: TOKENS.USDC, label: 'WETH/USDC' },
+      { token0: TOKENS.WETH, token1: TOKENS.WBTC, label: 'WETH/WBTC' },
+      { token0: TOKENS.WETH, token1: TOKENS.LINK, label: 'WETH/LINK' },
       { token0: TOKENS.ARB, token1: TOKENS.USDC, label: 'ARB/USDC' },
-      { token0: TOKENS.USDT, token1: TOKENS.WETH, label: 'USDT/WETH' },
+      { token0: TOKENS.WETH, token1: TOKENS.USDT, label: 'WETH/USDT' },
     ];
 
     let validPairs = 0;

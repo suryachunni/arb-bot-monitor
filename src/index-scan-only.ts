@@ -4,6 +4,7 @@ import { config, validateConfig } from './config/config';
 import { ProductionPriceOracle } from './services/ProductionPriceOracle';
 import { ProductionArbitrageScanner } from './services/ProductionArbitrageScanner';
 import { ProductionTelegramBot } from './services/ProductionTelegramBot';
+import { TOKENS } from './config/constants';
 
 /**
  * ═══════════════════════════════════════════════════════════════════
@@ -159,6 +160,9 @@ class ScanOnlyBot {
       // Clear price cache for fresh data
       this.priceOracle.clearCache();
 
+      // Send detailed price update to Telegram EVERY scan
+      await this.sendDetailedPriceUpdate(startTime);
+
       // Scan for all arbitrage opportunities
       const opportunities = await this.scanner.scanAllOpportunities();
 
@@ -183,21 +187,6 @@ class ScanOnlyBot {
         // Send best opportunity to Telegram
         const bestOpp = opportunities[0];
         await this.sendScanOnlyAlert(bestOpp, opportunities.length);
-      } else {
-        logger.info('ℹ️  No profitable opportunities found this scan');
-        
-        // Send status update every 5 scans
-        if (this.scanCount % 5 === 0) {
-          await this.telegramBot.sendMessage(
-            `📊 *Scan #${this.scanCount} Complete*\n\n` +
-            `✅ Scanning working perfectly\n` +
-            `📈 Total opportunities found: ${this.totalOpportunitiesFound}\n` +
-            `⏰ Last scan: ${new Date().toLocaleTimeString()}\n\n` +
-            `ℹ️ No profitable opportunities this scan.\n` +
-            `Market is efficient - this is normal!\n\n` +
-            `🔄 Next scan in 2 minutes...`
-          );
-        }
       }
 
       logger.info('');
@@ -210,6 +199,87 @@ class ScanOnlyBot {
     } catch (error) {
       logger.error('❌ Scan failed:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Send detailed price update with liquidity data to Telegram
+   */
+  private async sendDetailedPriceUpdate(startTime: number): Promise<void> {
+    logger.info('📱 Fetching live prices for Telegram alert...');
+
+    try {
+      // Top pairs to check
+      const pairsToCheck = [
+        ['WETH', 'USDC'],
+        ['WETH', 'ARB'],
+        ['ARB', 'USDC'],
+      ];
+
+      let message = `🔍 *SCAN #${this.scanCount} - LIVE PRICE DATA*\n`;
+      message += `⏰ ${new Date().toLocaleTimeString()}\n\n`;
+
+      for (const [tokenA, tokenB] of pairsToCheck) {
+        const tokenAAddr = (TOKENS as any)[tokenA];
+        const tokenBAddr = (TOKENS as any)[tokenB];
+
+        if (!tokenAAddr || !tokenBAddr) continue;
+
+        try {
+          const priceData = await this.priceOracle.getRealTimePrices(tokenAAddr, tokenBAddr);
+
+          message += `━━━━━━━━━━━━━━━━━━━━━━\n`;
+          message += `💱 *${tokenA} / ${tokenB}*\n\n`;
+
+          if (priceData.prices.length === 0) {
+            message += `⚠️ No liquidity pools found\n\n`;
+            continue;
+          }
+
+          // Show top 3 DEXs with best prices
+          const sortedPrices = [...priceData.prices].sort((a, b) => b.liquidity - a.liquidity);
+          sortedPrices.slice(0, 3).forEach((p) => {
+            const liquidityUSD = p.liquidity * 2000;
+            const liquidityStr = liquidityUSD >= 1_000_000 
+              ? `$${(liquidityUSD / 1_000_000).toFixed(2)}M`
+              : liquidityUSD >= 1_000
+              ? `$${(liquidityUSD / 1_000).toFixed(2)}K`
+              : `$${liquidityUSD.toFixed(0)}`;
+
+            message += `📊 ${p.dex}\n`;
+            message += `   Price: ${p.price.toFixed(6)}\n`;
+            message += `   Liq: ${liquidityStr}\n\n`;
+          });
+
+          // Show spread
+          if (priceData.prices.length >= 2) {
+            message += `📈 Spread: ${priceData.spreadPercent.toFixed(3)}%\n`;
+            if (priceData.spreadPercent > 0.5) {
+              message += `✅ Profitable spread!\n`;
+            } else {
+              message += `ℹ️ Spread too small\n`;
+            }
+          }
+
+          message += '\n';
+
+        } catch (error) {
+          message += `⚠️ Error fetching prices\n\n`;
+        }
+      }
+
+      message += `━━━━━━━━━━━━━━━━━━━━━━\n`;
+      message += `📊 *Scan Stats:*\n`;
+      message += `✅ Total Scans: ${this.scanCount}\n`;
+      message += `📈 Opportunities: ${this.totalOpportunitiesFound}\n`;
+      message += `🔄 Next scan: 2 minutes\n\n`;
+      message += `⚠️ *SCAN-ONLY MODE*\n`;
+      message += `No trades executed`;
+
+      await this.telegramBot.sendMessage(message);
+
+    } catch (error) {
+      logger.error('Error sending price update:', error);
     }
   }
 

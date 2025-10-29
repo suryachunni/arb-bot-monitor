@@ -281,13 +281,13 @@ export class ProductionArbitrageScanner {
     const amountIn = ethers.utils.parseUnits('1', 18); // Start with 1 token
     
     // A → B
-    const amountB = amountIn.mul(Math.floor(bestAB.bestBuyPrice * 1e6)).div(1e6);
+    const amountB = amountIn.mul(Math.floor(bestAB.price * 1e6)).div(1e6);
     
     // B → C
-    const amountC = amountB.mul(Math.floor(bestBC.bestBuyPrice * 1e6)).div(1e6);
+    const amountC = amountB.mul(Math.floor(bestBC.price * 1e6)).div(1e6);
     
     // C → A
-    const finalAmount = amountC.mul(Math.floor(bestCA.bestBuyPrice * 1e6)).div(1e6);
+    const finalAmount = amountC.mul(Math.floor(bestCA.price * 1e6)).div(1e6);
 
     const profit = parseFloat(ethers.utils.formatUnits(finalAmount.sub(amountIn), 18));
     const profitPercentage = (profit / parseFloat(ethers.utils.formatUnits(amountIn, 18))) * 100;

@@ -168,25 +168,48 @@ class MonitoringBot {
     let allPairPrices: any[] = []; // Store all prices for detailed reporting
 
     for (const pair of pairs) {
-      // Use smaller test amount (1000 USDC) for more accurate prices with less slippage
-      const amount = ethers.utils.parseUnits('1000', pair.token0.decimals);
+      // Use 1 token for test (e.g., 1 WETH, 1 ARB) to get USD price
+      const amount = ethers.utils.parseUnits('1', pair.token0.decimals);
 
       const prices: any[] = [];
 
       // Check all DEXs (4 total now!)
+      console.log(`Checking ${pair.label} on all DEXs...`);
       const uniPrice = await this.getUniV3Price(pair.token0, pair.token1, amount);
-      if (uniPrice.success) prices.push(uniPrice);
+      if (uniPrice.success) {
+        console.log(`  ✅ Uniswap V3: ${uniPrice.price}`);
+        prices.push(uniPrice);
+      } else {
+        console.log(`  ❌ Uniswap V3: No pool`);
+      }
 
       const sushiPrice = await this.getV2Price(DEXS.SUSHISWAP.factory, 'SushiSwap', pair.token0, pair.token1, amount);
-      if (sushiPrice.success) prices.push(sushiPrice);
+      if (sushiPrice.success) {
+        console.log(`  ✅ SushiSwap: ${sushiPrice.price}`);
+        prices.push(sushiPrice);
+      } else {
+        console.log(`  ❌ SushiSwap: No pool or low liquidity`);
+      }
 
       const traderJoePrice = await this.getV2Price(DEXS.TRADERJOE.factory, 'TraderJoe', pair.token0, pair.token1, amount);
-      if (traderJoePrice.success) prices.push(traderJoePrice);
+      if (traderJoePrice.success) {
+        console.log(`  ✅ TraderJoe: ${traderJoePrice.price}`);
+        prices.push(traderJoePrice);
+      } else {
+        console.log(`  ❌ TraderJoe: No pool or low liquidity`);
+      }
 
       const ramsesPrice = await this.getV2Price(DEXS.RAMSES.factory, 'Ramses', pair.token0, pair.token1, amount);
-      if (ramsesPrice.success) prices.push(ramsesPrice);
+      if (ramsesPrice.success) {
+        console.log(`  ✅ Ramses: ${ramsesPrice.price}`);
+        prices.push(ramsesPrice);
+      } else {
+        console.log(`  ❌ Ramses: No pool or low liquidity`);
+      }
 
-      if (prices.length < 2) continue;
+      console.log(`  Found ${prices.length} DEXs with data for ${pair.label}`);
+
+      if (prices.length < 1) continue; // Changed from <2 to <1 to show even single DEX
       validPairs++;
 
       // Store price data for this pair (showing USD price)
@@ -242,8 +265,15 @@ class MonitoringBot {
       }
     }
 
+    // Debug: Log price data
+    console.log(`📊 Collected prices for ${allPairPrices.length} pairs`);
+    if (allPairPrices.length > 0) {
+      console.log(`First pair: ${JSON.stringify(allPairPrices[0], null, 2)}`);
+    }
+
     // Send Telegram update with detailed prices
     const msg = this.formatTelegramMessage(block, validPairs, opportunities, allPairPrices);
+    console.log(`📲 Telegram message length: ${msg.length} chars`);
     await this.sendTelegram(msg);
 
     if (opportunities.length > 0) {
@@ -255,58 +285,59 @@ class MonitoringBot {
   }
 
   formatTelegramMessage(block: number, validPairs: number, opportunities: any[], allPairPrices: any[]): string {
-    let msg = `🤖 *ARBITRAGE BOT - SCAN #${this.scanCount}*\n\n`;
+    let msg = `🤖 ARBITRAGE BOT - SCAN #${this.scanCount}\n\n`;
     msg += `📦 Block: #${block.toLocaleString()}\n`;
     msg += `⏰ Time: ${new Date().toLocaleString()}\n`;
     msg += `🔍 Valid Pairs: ${validPairs}\n\n`;
 
     if (opportunities.length === 0) {
-      msg += `✅ *NO OPPORTUNITIES*\n`;
+      msg += `✅ NO OPPORTUNITIES\n`;
       msg += `Markets are efficient right now.\n\n`;
       
-      // Show live prices for top 5 pairs
+      // Show live prices for ALL pairs (not just top 5)
       if (allPairPrices.length > 0) {
-        msg += `📊 *LIVE PRICES (Top 5):*\n\n`;
-        const topPairs = allPairPrices.slice(0, 5);
-        for (const pairData of topPairs) {
-          msg += `*${pairData.displayLabel || pairData.pair}:*\n`;
+        msg += `📊 LIVE PRICES:\n\n`;
+        for (const pairData of allPairPrices) {
+          msg += `${pairData.displayLabel || pairData.pair}:\n`;
           for (const priceInfo of pairData.prices) {
-            msg += `  • ${priceInfo.dex}: ${priceInfo.price} (Liq: ${priceInfo.liquidity})\n`;
+            msg += `  • ${priceInfo.dex}: ${priceInfo.price} (${priceInfo.liquidity})\n`;
           }
           msg += `\n`;
         }
+      } else {
+        msg += `⚠️ No price data available\n\n`;
       }
       
-      msg += `💡 *Bot Status:*\n`;
-      msg += `• Scanning every ${SCAN_INTERVAL_MINUTES} minutes\n`;
-      msg += `• Monitoring 4 DEXs\n`;
-      msg += `• Will alert when opportunities appear\n`;
+      msg += `💡 Bot Status:\n`;
+      msg += `• Scanning every ${SCAN_INTERVAL_MINUTES} min\n`;
+      msg += `• 4 DEXs monitored\n`;
+      msg += `• 5 tokens tracked\n`;
     } else {
-      msg += `🎉 *${opportunities.length} PROFITABLE OPPORTUNITIES!*\n\n`;
+      msg += `🎉 ${opportunities.length} OPPORTUNITIES!\n\n`;
       
       for (let i = 0; i < opportunities.length; i++) {
         const opp = opportunities[i];
-        msg += `📈 *Opportunity ${i + 1}*\n`;
+        msg += `📈 Opportunity ${i + 1}\n`;
         msg += `Pair: ${opp.pair}\n`;
         msg += `Route: ${opp.buyDex} → ${opp.sellDex}\n`;
-        msg += `Net Profit: *$${opp.netProfit.toFixed(2)}*\n`;
+        msg += `Net Profit: $${opp.netProfit.toFixed(2)}\n`;
         msg += `ROI: ${opp.profitPct.toFixed(3)}%\n\n`;
         
         // Show all prices for verification
         if (opp.allPrices && opp.allPrices.length > 0) {
-          msg += `📊 *All DEX Prices:*\n`;
+          msg += `📊 All DEX Prices:\n`;
           for (const priceInfo of opp.allPrices) {
-            msg += `  • ${priceInfo.dex}: ${priceInfo.price} (Liq: ${priceInfo.liquidity})\n`;
+            msg += `  • ${priceInfo.dex}: ${priceInfo.price} (${priceInfo.liquidity})\n`;
           }
           msg += `\n`;
         }
       }
 
-      msg += `⚠️ *ADD PRIVATE_KEY TO EXECUTE*\n`;
-      msg += `Set your key in .env.production to auto-execute\n`;
+      msg += `⚠️ ADD PRIVATE_KEY TO EXECUTE\n`;
+      msg += `Set your key in .env.production\n`;
     }
 
-    msg += `\n📊 *Session Stats:*\n`;
+    msg += `\n📊 Session Stats:\n`;
     msg += `Total Scans: ${this.scanCount}\n`;
     msg += `Total Opportunities: ${this.totalOpportunities}`;
 

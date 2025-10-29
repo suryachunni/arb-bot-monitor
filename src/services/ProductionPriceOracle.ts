@@ -99,8 +99,19 @@ export class ProductionPriceOracle {
         throw new Error(`No prices found for ${tokenA}/${tokenB}`);
       }
 
-      // Find best buy (lowest) and sell (highest) prices
-      const buyPrices = allPrices.map(p => p.price);
+      // Filter out invalid prices (zero or near-zero, or unreasonably high)
+      const validPrices = allPrices.filter(p => {
+        const price = p.price;
+        // Filter out: zero prices, negative, or unreasonably high (likely calculation errors)
+        return price > 0.000001 && price < 1000000000000;
+      });
+
+      if (validPrices.length === 0) {
+        throw new Error(`No valid prices found for ${tokenA}/${tokenB}`);
+      }
+
+      // Find best buy (lowest) and sell (highest) prices from VALID prices only
+      const buyPrices = validPrices.map(p => p.price);
       const bestBuyPrice = Math.min(...buyPrices);
       const bestSellPrice = Math.max(...buyPrices);
       
@@ -112,12 +123,12 @@ export class ProductionPriceOracle {
       const result: TokenPairPrice = {
         tokenA,
         tokenB,
-        prices: allPrices,
+        prices: validPrices, // Use only valid prices
         bestBuyPrice,
         bestSellPrice,
         spread,
         spreadPercent,
-        totalLiquidity,
+        totalLiquidity: validPrices.reduce((sum, p) => sum + p.liquidity, 0),
         timestamp: Date.now(),
       };
 

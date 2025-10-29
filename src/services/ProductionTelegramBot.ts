@@ -22,12 +22,12 @@ export class ProductionTelegramBot {
   private pendingOpportunities: Map<string, ArbitrageOpportunity> = new Map();
 
   constructor(botToken: string, chatId: string, autoExecute: boolean = true) {
-    this.bot = new TelegramBot(botToken, { polling: true });
+    this.bot = new TelegramBot(botToken, { polling: false }); // Disable polling for scan-only mode
     this.chatId = chatId;
     this.autoExecute = autoExecute;
 
     this.setupHandlers();
-    logger.info('✅ Telegram bot initialized');
+    logger.info('✅ Telegram bot initialized (send-only mode)');
   }
 
   /**

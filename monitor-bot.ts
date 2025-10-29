@@ -88,7 +88,14 @@ class MonitoringBot {
       for (const fee of [500, 3000, 10000]) {
         try {
           const out = await quoter.callStatic.quoteExactInputSingle(t0.address, t1.address, fee, amount, 0);
-          if (out.gt(0)) return { success: true, amountOut: out, dex: 'Uniswap V3', fee };
+          if (out.gt(0)) {
+            // Calculate price
+            const amountInFloat = parseFloat(ethers.utils.formatUnits(amount, t0.decimals));
+            const amountOutFloat = parseFloat(ethers.utils.formatUnits(out, t1.decimals));
+            const price = amountOutFloat / amountInFloat;
+            
+            return { success: true, amountOut: out, dex: 'Uniswap V3', fee, price };
+          }
         } catch (e) { continue; }
       }
       return { success: false };
@@ -122,8 +129,13 @@ class MonitoringBot {
       const numerator = amountInWithFee.mul(reserveOut);
       const denominator = reserveIn.mul(1000).add(amountInWithFee);
       const amountOut = numerator.div(denominator);
-      
-      return { success: true, amountOut, dex: dexName, liquidityUSD };
+
+      // Calculate price
+      const amountInFloat = parseFloat(ethers.utils.formatUnits(amount, t0.decimals));
+      const amountOutFloat = parseFloat(ethers.utils.formatUnits(amountOut, t1.decimals));
+      const price = amountOutFloat / amountInFloat;
+
+      return { success: true, amountOut, dex: dexName, liquidityUSD, price };
     } catch (e) {
       return { success: false };
     }

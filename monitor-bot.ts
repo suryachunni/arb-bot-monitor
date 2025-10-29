@@ -121,8 +121,12 @@ class MonitoringBot {
       const isToken0 = token0Addr.toLowerCase() === t0.address.toLowerCase();
       const [reserveIn, reserveOut] = isToken0 ? [r0, r1] : [r1, r0];
       
-      const liquidityUSD = parseFloat(ethers.utils.formatUnits(reserveOut, t1.decimals)) * 
-        (t1.symbol === 'USDC' || t1.symbol === 'USDT' ? 1 : 3000);
+      // Calculate approximate liquidity in USD
+      const reserveInFloat = parseFloat(ethers.utils.formatUnits(reserveIn, t0.decimals));
+      const reserveOutFloat = parseFloat(ethers.utils.formatUnits(reserveOut, t1.decimals));
+      
+      // reserveIn is USDC, so liquidity = reserveIn * 2
+      const liquidityUSD = reserveInFloat * 2;
       
       if (liquidityUSD < 50000) return { success: false, liquidityUSD };
 
@@ -176,7 +180,8 @@ class MonitoringBot {
     let allPairPrices: any[] = []; // Store all prices for detailed reporting
 
     for (const pair of pairs) {
-      const amount = ethers.utils.parseUnits('10000', pair.token0.decimals);
+      // Use smaller test amount (1000 USDC) for more accurate prices with less slippage
+      const amount = ethers.utils.parseUnits('1000', pair.token0.decimals);
 
       const prices: any[] = [];
 

@@ -109,11 +109,12 @@ export class UltraFastArbitrageScanner {
   /**
    * Scan for arbitrage opportunities on a specific pair
    * Checks both directions: A->B->A and B->A->B
+   * Loan amount is DYNAMICALLY calculated per opportunity ($1k - $2M)
    */
   async scanPair(
     token0: string,
     token1: string,
-    loanAmountUSD: number = productionConfig.flashLoan.minLoanAmountUSD
+    baseLoanAmountUSD?: number // Optional - will be dynamically adjusted
   ): Promise<ArbitrageOpportunity[]> {
     const opportunities: ArbitrageOpportunity[] = [];
 
@@ -128,6 +129,20 @@ export class UltraFastArbitrageScanner {
       return opportunities; // Need at least 2 DEXs for arbitrage
     }
 
+    // Calculate liquidity for dynamic loan sizing
+    const priceArray = Array.from(prices.values());
+    const avgLiquidityUSD = this.estimateAverageLiquidity(priceArray);
+    const spread = this.calculateQuickSpread(priceArray);
+
+    // DYNAMIC LOAN SIZING: Calculate optimal loan for THIS specific opportunity
+    const dynamicLoanUSD = this.calculateDynamicLoanSize(
+      avgLiquidityUSD,
+      spread,
+      baseLoanAmountUSD
+    );
+
+    console.log(`💰 Dynamic loan size for this pair: $${dynamicLoanUSD.toLocaleString()}`);
+
     // Check forward direction: Borrow token0, buy token1, sell token1, repay token0
     if (supportsFlashLoan(token0)) {
       const forwardOpp = await this.checkDirection(
@@ -135,7 +150,7 @@ export class UltraFastArbitrageScanner {
         token1,
         prices,
         'forward',
-        loanAmountUSD
+        dynamicLoanUSD // Use dynamic size
       );
       if (forwardOpp && this.isProfitable(forwardOpp)) {
         opportunities.push(forwardOpp);
@@ -149,7 +164,7 @@ export class UltraFastArbitrageScanner {
         token0,
         prices,
         'reverse',
-        loanAmountUSD
+        dynamicLoanUSD // Use dynamic size
       );
       if (reverseOpp && this.isProfitable(reverseOpp)) {
         opportunities.push(reverseOpp);
@@ -394,6 +409,79 @@ export class UltraFastArbitrageScanner {
     score += 20; // Assuming high liquidity pairs
 
     return Math.min(100, score);
+  }
+
+  /**
+   * Calculate dynamic loan size based on opportunity characteristics
+   * Range: $1,000 - $2,000,000
+   */
+  private calculateDynamicLoanSize(
+    liquidityUSD: number,
+    spreadPercentage: number,
+    baseAmount?: number
+  ): number {
+    const MIN = 1000; // $1k minimum
+    const MAX = 2000000; // $2M maximum
+
+    // Rule 1: Liquidity-based maximum (5% of pool)
+    const liquidityMax = liquidityUSD * 0.05;
+
+    // Rule 2: Spread-based optimization
+    let spreadMultiplier = 1.0;
+    if (spreadPercentage >= 2.0) {
+      spreadMultiplier = 1.5; // Large spread = larger trade
+    } else if (spreadPercentage >= 1.0) {
+      spreadMultiplier = 1.25;
+    } else if (spreadPercentage >= 0.5) {
+      spreadMultiplier = 1.0;
+    } else {
+      spreadMultiplier = 0.5; // Small spread = smaller trade
+    }
+
+    // Calculate optimal size
+    const baseSize = baseAmount || productionConfig.flashLoan.minLoanAmountUSD;
+    let optimalSize = baseSize * spreadMultiplier;
+
+    // Don't exceed liquidity limit
+    optimalSize = Math.min(optimalSize, liquidityMax);
+
+    // Apply absolute limits
+    optimalSize = Math.max(MIN, Math.min(MAX, optimalSize));
+
+    // Round to nearest $1000
+    optimalSize = Math.round(optimalSize / 1000) * 1000;
+
+    return optimalSize;
+  }
+
+  /**
+   * Estimate average liquidity from price data
+   */
+  private estimateAverageLiquidity(prices: TokenPrice[]): number {
+    if (prices.length === 0) return 0;
+
+    // Estimate based on liquidity values
+    const liquidityEstimates = prices.map(p => {
+      // Convert liquidity string to USD estimate
+      const liquidityBN = BigNumber.from(p.liquidity || '0');
+      return parseFloat(ethers.utils.formatEther(liquidityBN)) * 2000; // Rough USD estimate
+    });
+
+    const total = liquidityEstimates.reduce((sum, val) => sum + val, 0);
+    return total / liquidityEstimates.length;
+  }
+
+  /**
+   * Calculate quick spread percentage
+   */
+  private calculateQuickSpread(prices: TokenPrice[]): number {
+    if (prices.length < 2) return 0;
+
+    const priceValues = prices.map(p => p.price);
+    const minPrice = Math.min(...priceValues);
+    const maxPrice = Math.max(...priceValues);
+
+    return ((maxPrice - minPrice) / minPrice) * 100;
   }
 
   /**

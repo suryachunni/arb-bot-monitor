@@ -40,6 +40,7 @@ const DEXS = {
   UNISWAP_V3: {
     name: 'Uniswap V3',
     quoter: '0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6',
+    factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984',
   },
   SUSHISWAP: {
     name: 'SushiSwap',
@@ -85,6 +86,8 @@ class MonitoringBot {
   async getUniV3Price(t0: any, t1: any, amount: BigNumber) {
     try {
       const quoter = new Contract(DEXS.UNISWAP_V3.quoter, QUOTER_ABI, this.provider);
+      const factory = new Contract(DEXS.UNISWAP_V3.factory, V2_FACTORY_ABI, this.provider);
+      
       for (const fee of [500, 3000, 10000]) {
         try {
           const out = await quoter.callStatic.quoteExactInputSingle(t0.address, t1.address, fee, amount, 0);
@@ -95,7 +98,21 @@ class MonitoringBot {
             const amountOutFloat = parseFloat(ethers.utils.formatUnits(out, t1.decimals));
             const price = amountOutFloat / amountInFloat; // USDC / TOKEN = USD price
             
-            return { success: true, amountOut: out, dex: 'Uniswap V3', fee, price };
+            // Try to get pool address for liquidity (optional)
+            let liquidityUSD = 0;
+            try {
+              const poolAddr = await factory.getPool(t0.address, t1.address, fee);
+              if (poolAddr && poolAddr !== ethers.constants.AddressZero) {
+                const poolContract = new Contract(poolAddr, ['function liquidity() view returns (uint128)'], this.provider);
+                const liq = await poolContract.liquidity();
+                // Rough estimate: liquidity * price
+                liquidityUSD = parseFloat(ethers.utils.formatUnits(liq, 18)) * price;
+              }
+            } catch (e) {
+              // Liquidity fetch failed, continue without it
+            }
+            
+            return { success: true, amountOut: out, dex: 'Uniswap V3', fee, price, liquidityUSD };
           }
         } catch (e) { continue; }
       }
@@ -168,8 +185,8 @@ class MonitoringBot {
     let allPairPrices: any[] = []; // Store all prices for detailed reporting
 
     for (const pair of pairs) {
-      // Use 1 token for test (e.g., 1 WETH, 1 ARB) to get USD price
-      const amount = ethers.utils.parseUnits('1', pair.token0.decimals);
+      // Use tiny amount (0.1 token) to minimize slippage and get accurate price
+      const amount = ethers.utils.parseUnits('0.1', pair.token0.decimals);
 
       const prices: any[] = [];
 

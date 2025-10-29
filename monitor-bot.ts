@@ -171,13 +171,25 @@ class MonitoringBot {
     const block = await this.provider.getBlockNumber();
     console.log(`📦 Block: #${block.toLocaleString()}`);
 
+    // Step 1: Get WETH price from WETH/USDC (best liquidity)
+    const wethAmount = ethers.utils.parseUnits('0.1', TOKENS.WETH.decimals);
+    const wethUsdcPrice = await this.getUniV3Price(TOKENS.WETH, TOKENS.USDC, wethAmount);
+    
+    let wethUsdPrice: number = 3140; // Fallback
+    if (wethUsdcPrice.success && wethUsdcPrice.price) {
+      wethUsdPrice = wethUsdcPrice.price;
+      console.log(`✅ WETH/USDC: $${wethUsdPrice.toFixed(2)}`);
+    } else {
+      console.log(`❌ WETH/USDC: Failed, using fallback $${wethUsdPrice}`);
+    }
+
+    // Step 2: Define pairs using high-liquidity TOKEN/WETH pools
     const pairs = [
-      // Use WETH/USDC as base (most liquid), calculate inverse for display
-      { token0: TOKENS.WETH, token1: TOKENS.USDC, label: 'WETH', inverse: true },
-      { token0: TOKENS.ARB, token1: TOKENS.USDC, label: 'ARB', inverse: true },
-      { token0: TOKENS.GMX, token1: TOKENS.USDC, label: 'GMX', inverse: true },
-      { token0: TOKENS.LINK, token1: TOKENS.USDC, label: 'LINK', inverse: true },
-      { token0: TOKENS.UNI, token1: TOKENS.USDC, label: 'UNI', inverse: true },
+      { token0: TOKENS.WETH, token1: TOKENS.USDC, label: 'WETH', useUsdDirectly: true, wethPrice: 0 },
+      { token0: TOKENS.ARB, token1: TOKENS.WETH, label: 'ARB', useUsdDirectly: false, wethPrice: wethUsdPrice },
+      { token0: TOKENS.GMX, token1: TOKENS.WETH, label: 'GMX', useUsdDirectly: false, wethPrice: wethUsdPrice },
+      { token0: TOKENS.LINK, token1: TOKENS.WETH, label: 'LINK', useUsdDirectly: false, wethPrice: wethUsdPrice },
+      { token0: TOKENS.UNI, token1: TOKENS.WETH, label: 'UNI', useUsdDirectly: false, wethPrice: wethUsdPrice },
     ];
 
     let validPairs = 0;
@@ -235,8 +247,11 @@ class MonitoringBot {
         displayLabel: pair.label,
         prices: prices.map(p => ({
           dex: p.dex,
-          // Price is already in USD (USDC out / TOKEN in)
-          price: p.price ? `$${p.price.toFixed(2)}` : 'N/A',
+          // Calculate USD price based on pool type
+          price: p.price ? (pair.useUsdDirectly 
+            ? `$${p.price.toFixed(2)}` 
+            : `$${(p.price * pair.wethPrice).toFixed(2)}`
+          ) : 'N/A',
           liquidity: p.liquidityUSD ? `$${(p.liquidityUSD / 1000).toFixed(1)}k` : 'Unknown',
         })),
       });

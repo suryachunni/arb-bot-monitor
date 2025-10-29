@@ -145,7 +145,7 @@ class MonitoringBot {
       // reserveIn is USDC, so liquidity = reserveIn * 2
       const liquidityUSD = reserveInFloat * 2;
       
-      if (liquidityUSD < 50000) return { success: false, liquidityUSD };
+      if (liquidityUSD < 25000) return { success: false, liquidityUSD };
 
       const amountInWithFee = amount.mul(997);
       const numerator = amountInWithFee.mul(reserveOut);
@@ -171,8 +171,8 @@ class MonitoringBot {
     const block = await this.provider.getBlockNumber();
     console.log(`📦 Block: #${block.toLocaleString()}`);
 
-    // Step 1: Get WETH price from WETH/USDC (best liquidity)
-    const wethAmount = ethers.utils.parseUnits('0.1', TOKENS.WETH.decimals);
+    // Step 1: Get WETH price from WETH/USDC (best liquidity) - use TINY amount for accuracy
+    const wethAmount = ethers.utils.parseUnits('0.01', TOKENS.WETH.decimals);
     const wethUsdcPrice = await this.getUniV3Price(TOKENS.WETH, TOKENS.USDC, wethAmount);
     
     let wethUsdPrice: number = 3140; // Fallback
@@ -197,8 +197,8 @@ class MonitoringBot {
     let allPairPrices: any[] = []; // Store all prices for detailed reporting
 
     for (const pair of pairs) {
-      // Use tiny amount (0.1 token) to minimize slippage and get accurate price
-      const amount = ethers.utils.parseUnits('0.1', pair.token0.decimals);
+      // Use VERY tiny amount (0.01 token) to minimize slippage and get accurate price
+      const amount = ethers.utils.parseUnits('0.01', pair.token0.decimals);
 
       const prices: any[] = [];
 

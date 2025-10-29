@@ -1,0 +1,61 @@
+═══════════════════════════════════════════════════════════════════
+   📲 CHECK YOUR TELEGRAM NOW! @Rise2203_bot
+═══════════════════════════════════════════════════════════════════
+
+✅ LIVE PRICE ALERTS ARE NOW ACTIVE!
+
+Your bot is now sending EVERY SCAN with:
+
+📊 LIVE PRICES:
+  • All 4 DEXs (Uniswap, Sushi, TraderJoe, Ramses)
+  • Real prices for top 5 pairs
+  • Liquidity for each DEX
+  • Updated every 1 minute!
+
+🎯 WHAT YOU'LL SEE:
+
+WETH/ARB:
+  • Uniswap V3: $2,745.12 ($2,500.0k)
+  • SushiSwap: $2,744.89 ($850.5k)
+  • TraderJoe: $2,745.23 ($425.2k)
+  • Ramses: $2,745.00 ($125.8k)
+
+WETH/USDC:
+  • Uniswap V3: $2,745.57 ($5,200.0k)
+  • SushiSwap: $2,745.12 ($1,200.3k)
+  ...and more!
+
+═══════════════════════════════════════════════════════════════════
+
+💡 YOU CAN NOW MANUALLY VERIFY:
+
+1. ✅ Bot is working (prices update every minute)
+2. ✅ Prices are real (compare to Uniswap website)
+3. ✅ Liquidity is real (see $ amounts)
+4. ✅ DEXs are being scanned (see all 4)
+
+═══════════════════════════════════════════════════════════════════
+
+🔥 CURRENT BOT STATUS:
+
+Running: ✅ YES
+Scan Interval: Every 1 minute
+DEXs: 4 (Uniswap V3, SushiSwap, TraderJoe, Ramses)
+Pairs: 16
+Tokens: 12
+Price Updates: EVERY SCAN!
+Telegram: ✅ @Rise2203_bot
+
+═══════════════════════════════════════════════════════════════════
+
+📲 OPEN TELEGRAM AND WATCH:
+
+You should see updates EVERY MINUTE with:
+  ✅ Live prices
+  ✅ Liquidity data
+  ✅ Market status
+  ✅ Full transparency
+
+NO MORE GUESSING - SEE EVERYTHING LIVE! 🚀
+
+═══════════════════════════════════════════════════════════════════

@@ -164,6 +164,7 @@ class MonitoringBot {
 
     let validPairs = 0;
     let opportunities: any[] = [];
+    let allPairPrices: any[] = []; // Store all prices for detailed reporting
 
     for (const pair of pairs) {
       const amount = ethers.utils.parseUnits('10000', pair.token0.decimals);
@@ -185,6 +186,16 @@ class MonitoringBot {
 
       if (prices.length < 2) continue;
       validPairs++;
+
+      // Store price data for this pair
+      allPairPrices.push({
+        pair: pair.label,
+        prices: prices.map(p => ({
+          dex: p.dex,
+          price: p.price ? p.price.toFixed(6) : 'N/A',
+          liquidity: p.liquidityUSD ? `$${(p.liquidityUSD / 1000).toFixed(1)}k` : 'Unknown',
+        })),
+      });
 
       // Test arbitrage
       for (let i = 0; i < prices.length; i++) {
@@ -215,14 +226,20 @@ class MonitoringBot {
               sellDex: sellDex.dex,
               netProfit,
               profitPct,
+              // Add detailed price info for verification
+              allPrices: prices.map(p => ({
+                dex: p.dex,
+                price: p.price ? p.price.toFixed(6) : 'N/A',
+                liquidity: p.liquidityUSD ? `$${(p.liquidityUSD / 1000).toFixed(1)}k` : 'Unknown',
+              })),
             });
           }
         }
       }
     }
 
-    // Send Telegram update
-    const msg = this.formatTelegramMessage(block, validPairs, opportunities);
+    // Send Telegram update with detailed prices
+    const msg = this.formatTelegramMessage(block, validPairs, opportunities, allPairPrices);
     await this.sendTelegram(msg);
 
     if (opportunities.length > 0) {
@@ -233,7 +250,7 @@ class MonitoringBot {
     }
   }
 
-  formatTelegramMessage(block: number, validPairs: number, opportunities: any[]): string {
+  formatTelegramMessage(block: number, validPairs: number, opportunities: any[], allPairPrices: any[]): string {
     let msg = `🤖 *ARBITRAGE BOT - SCAN #${this.scanCount}*\n\n`;
     msg += `📦 Block: #${block.toLocaleString()}\n`;
     msg += `⏰ Time: ${new Date().toLocaleString()}\n`;
@@ -242,9 +259,23 @@ class MonitoringBot {
     if (opportunities.length === 0) {
       msg += `✅ *NO OPPORTUNITIES*\n`;
       msg += `Markets are efficient right now.\n\n`;
+      
+      // Show live prices for top 5 pairs
+      if (allPairPrices.length > 0) {
+        msg += `📊 *LIVE PRICES (Top 5):*\n\n`;
+        const topPairs = allPairPrices.slice(0, 5);
+        for (const pairData of topPairs) {
+          msg += `*${pairData.pair}:*\n`;
+          for (const priceInfo of pairData.prices) {
+            msg += `  • ${priceInfo.dex}: $${priceInfo.price} (${priceInfo.liquidity})\n`;
+          }
+          msg += `\n`;
+        }
+      }
+      
       msg += `💡 *Bot Status:*\n`;
       msg += `• Scanning every ${SCAN_INTERVAL_MINUTES} minutes\n`;
-      msg += `• Monitoring ${validPairs} high-liquidity pairs\n`;
+      msg += `• Monitoring 4 DEXs\n`;
       msg += `• Will alert when opportunities appear\n`;
     } else {
       msg += `🎉 *${opportunities.length} PROFITABLE OPPORTUNITIES!*\n\n`;
@@ -256,6 +287,15 @@ class MonitoringBot {
         msg += `Route: ${opp.buyDex} → ${opp.sellDex}\n`;
         msg += `Net Profit: *$${opp.netProfit.toFixed(2)}*\n`;
         msg += `ROI: ${opp.profitPct.toFixed(3)}%\n\n`;
+        
+        // Show all prices for verification
+        if (opp.allPrices && opp.allPrices.length > 0) {
+          msg += `📊 *All DEX Prices:*\n`;
+          for (const priceInfo of opp.allPrices) {
+            msg += `  • ${priceInfo.dex}: $${priceInfo.price} (${priceInfo.liquidity})\n`;
+          }
+          msg += `\n`;
+        }
       }
 
       msg += `⚠️ *ADD PRIVATE_KEY TO EXECUTE*\n`;

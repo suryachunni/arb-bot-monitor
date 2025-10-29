@@ -7,17 +7,27 @@
 
 import { productionConfig } from './config/production.config';
 import { UltraFastArbitrageScanner, ArbitrageOpportunity } from './services/UltraFastArbitrageScanner';
+import { TriangularArbitrageScanner, TriangularArbitrageOpportunity } from './services/TriangularArbitrageScanner';
 import { AdvancedFlashLoanExecutor } from './services/AdvancedFlashLoanExecutor';
 import { ProductionTelegramBot } from './services/ProductionTelegramBot';
 import { LiquidityValidator } from './services/LiquidityValidator';
-import { HIGH_LIQUIDITY_PAIRS } from './config/tokens.config';
+import { HIGH_LIQUIDITY_PAIRS, ARBITRUM_TOKENS } from './config/tokens.config';
 import { ethers } from 'ethers';
 
 /**
  * Production-grade arbitrage bot with enterprise features
  */
+// Triangular routes for scanning
+const TRIANGULAR_ROUTES = [
+  { token0: ARBITRUM_TOKENS.USDC.address, token1: ARBITRUM_TOKENS.WETH.address, token2: ARBITRUM_TOKENS.ARB.address, label: 'USDC→WETH→ARB' },
+  { token0: ARBITRUM_TOKENS.USDC.address, token1: ARBITRUM_TOKENS.WETH.address, token2: ARBITRUM_TOKENS.USDT.address, label: 'USDC→WETH→USDT' },
+  { token0: ARBITRUM_TOKENS.USDC.address, token1: ARBITRUM_TOKENS.ARB.address, token2: ARBITRUM_TOKENS.WETH.address, label: 'USDC→ARB→WETH' },
+  { token0: ARBITRUM_TOKENS.WETH.address, token1: ARBITRUM_TOKENS.USDC.address, token2: ARBITRUM_TOKENS.ARB.address, label: 'WETH→USDC→ARB' },
+];
+
 class ProductionArbitrageBot {
   private scanner: UltraFastArbitrageScanner;
+  private triangularScanner: TriangularArbitrageScanner;
   private executor: AdvancedFlashLoanExecutor;
   private telegram: ProductionTelegramBot;
   private liquidityValidator: LiquidityValidator;

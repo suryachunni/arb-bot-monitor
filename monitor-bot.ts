@@ -45,7 +45,15 @@ const DEXS = {
     name: 'SushiSwap',
     factory: '0xc35DADB65012eC5796536bD9864eD8773aBc74C4',
   },
-  // CAMELOT REMOVED - Most pools have insufficient liquidity causing false price signals
+  TRADERJOE: {
+    name: 'TraderJoe',
+    factory: '0xaE4EC9901c3076D0DdBe76A520F9E90a6227aCB7',
+  },
+  RAMSES: {
+    name: 'Ramses',
+    factory: '0xAAA20D08e59F6561f242b08513D36266C5A29415',
+  },
+  // CAMELOT REMOVED - Low liquidity
 };
 
 const QUOTER_ABI = ['function quoteExactInputSingle(address,address,uint24,uint256,uint160) external returns (uint256)'];
@@ -162,12 +170,18 @@ class MonitoringBot {
 
       const prices: any[] = [];
 
-      // Check all DEXs
+      // Check all DEXs (4 total now!)
       const uniPrice = await this.getUniV3Price(pair.token0, pair.token1, amount);
       if (uniPrice.success) prices.push(uniPrice);
 
       const sushiPrice = await this.getV2Price(DEXS.SUSHISWAP.factory, 'SushiSwap', pair.token0, pair.token1, amount);
       if (sushiPrice.success) prices.push(sushiPrice);
+
+      const traderJoePrice = await this.getV2Price(DEXS.TRADERJOE.factory, 'TraderJoe', pair.token0, pair.token1, amount);
+      if (traderJoePrice.success) prices.push(traderJoePrice);
+
+      const ramsesPrice = await this.getV2Price(DEXS.RAMSES.factory, 'Ramses', pair.token0, pair.token1, amount);
+      if (ramsesPrice.success) prices.push(ramsesPrice);
 
       if (prices.length < 2) continue;
       validPairs++;

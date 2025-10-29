@@ -149,29 +149,24 @@ class MonitoringBot {
     console.log(`📦 Block: #${block.toLocaleString()}`);
 
     const pairs = [
-      // TIER 1: CORE PAIRS (Highest liquidity)
-      { token0: TOKENS.WETH, token1: TOKENS.ARB, label: 'WETH/ARB' },
-      { token0: TOKENS.WETH, token1: TOKENS.USDC, label: 'WETH/USDC' },
-      { token0: TOKENS.ARB, token1: TOKENS.USDC, label: 'ARB/USDC' },
-      { token0: TOKENS.WETH, token1: TOKENS.USDT, label: 'WETH/USDT' },
+      // TIER 1: CORE PAIRS (Highest liquidity) - Normalized to show price in USDC/USDT
+      { token0: TOKENS.USDC, token1: TOKENS.WETH, label: 'WETH/USDC', displayLabel: 'WETH' },
+      { token0: TOKENS.USDC, token1: TOKENS.ARB, label: 'ARB/USDC', displayLabel: 'ARB' },
+      { token0: TOKENS.USDT, token1: TOKENS.WETH, label: 'WETH/USDT', displayLabel: 'WETH' },
       
-      // TIER 2: MAJOR DEFI PAIRS (Good liquidity + volatility)
-      { token0: TOKENS.WETH, token1: TOKENS.GMX, label: 'WETH/GMX' },
-      { token0: TOKENS.WETH, token1: TOKENS.LINK, label: 'WETH/LINK' },
-      { token0: TOKENS.WETH, token1: TOKENS.UNI, label: 'WETH/UNI' },
-      { token0: TOKENS.GMX, token1: TOKENS.USDC, label: 'GMX/USDC' },
-      { token0: TOKENS.LINK, token1: TOKENS.USDC, label: 'LINK/USDC' },
+      // TIER 2: MAJOR DEFI PAIRS
+      { token0: TOKENS.USDC, token1: TOKENS.GMX, label: 'GMX/USDC', displayLabel: 'GMX' },
+      { token0: TOKENS.USDC, token1: TOKENS.LINK, label: 'LINK/USDC', displayLabel: 'LINK' },
+      { token0: TOKENS.USDC, token1: TOKENS.UNI, label: 'UNI/USDC', displayLabel: 'UNI' },
       
-      // TIER 3: VOLATILE PAIRS (High opportunity potential)
-      { token0: TOKENS.WETH, token1: TOKENS.MAGIC, label: 'WETH/MAGIC' },
-      { token0: TOKENS.WETH, token1: TOKENS.PENDLE, label: 'WETH/PENDLE' },
-      { token0: TOKENS.WETH, token1: TOKENS.GRAIL, label: 'WETH/GRAIL' },
-      { token0: TOKENS.MAGIC, token1: TOKENS.USDC, label: 'MAGIC/USDC' },
+      // TIER 3: VOLATILE PAIRS
+      { token0: TOKENS.USDC, token1: TOKENS.MAGIC, label: 'MAGIC/USDC', displayLabel: 'MAGIC' },
+      { token0: TOKENS.USDC, token1: TOKENS.PENDLE, label: 'PENDLE/USDC', displayLabel: 'PENDLE' },
+      { token0: TOKENS.USDC, token1: TOKENS.GRAIL, label: 'GRAIL/USDC', displayLabel: 'GRAIL' },
       
-      // TIER 4: ULTRA VOLATILE (Highest risk/reward)
-      { token0: TOKENS.WETH, token1: TOKENS.RDNT, label: 'WETH/RDNT' },
-      { token0: TOKENS.WETH, token1: TOKENS.JONES, label: 'WETH/JONES' },
-      { token0: TOKENS.RDNT, token1: TOKENS.USDC, label: 'RDNT/USDC' },
+      // TIER 4: ULTRA VOLATILE
+      { token0: TOKENS.USDC, token1: TOKENS.RDNT, label: 'RDNT/USDC', displayLabel: 'RDNT' },
+      { token0: TOKENS.USDC, token1: TOKENS.JONES, label: 'JONES/USDC', displayLabel: 'JONES' },
     ];
 
     let validPairs = 0;
@@ -199,12 +194,13 @@ class MonitoringBot {
       if (prices.length < 2) continue;
       validPairs++;
 
-      // Store price data for this pair
+      // Store price data for this pair (showing USD price)
       allPairPrices.push({
         pair: pair.label,
+        displayLabel: pair.displayLabel || pair.label,
         prices: prices.map(p => ({
           dex: p.dex,
-          price: p.price ? p.price.toFixed(6) : 'N/A',
+          price: p.price ? `$${p.price.toFixed(2)}` : 'N/A',
           liquidity: p.liquidityUSD ? `$${(p.liquidityUSD / 1000).toFixed(1)}k` : 'Unknown',
         })),
       });
@@ -241,7 +237,7 @@ class MonitoringBot {
               // Add detailed price info for verification
               allPrices: prices.map(p => ({
                 dex: p.dex,
-                price: p.price ? p.price.toFixed(6) : 'N/A',
+                price: p.price ? `$${p.price.toFixed(2)}` : 'N/A',
                 liquidity: p.liquidityUSD ? `$${(p.liquidityUSD / 1000).toFixed(1)}k` : 'Unknown',
               })),
             });
@@ -277,9 +273,9 @@ class MonitoringBot {
         msg += `📊 *LIVE PRICES (Top 5):*\n\n`;
         const topPairs = allPairPrices.slice(0, 5);
         for (const pairData of topPairs) {
-          msg += `*${pairData.pair}:*\n`;
+          msg += `*${pairData.displayLabel || pairData.pair}:*\n`;
           for (const priceInfo of pairData.prices) {
-            msg += `  • ${priceInfo.dex}: $${priceInfo.price} (${priceInfo.liquidity})\n`;
+            msg += `  • ${priceInfo.dex}: ${priceInfo.price} (Liq: ${priceInfo.liquidity})\n`;
           }
           msg += `\n`;
         }
@@ -304,7 +300,7 @@ class MonitoringBot {
         if (opp.allPrices && opp.allPrices.length > 0) {
           msg += `📊 *All DEX Prices:*\n`;
           for (const priceInfo of opp.allPrices) {
-            msg += `  • ${priceInfo.dex}: $${priceInfo.price} (${priceInfo.liquidity})\n`;
+            msg += `  • ${priceInfo.dex}: ${priceInfo.price} (Liq: ${priceInfo.liquidity})\n`;
           }
           msg += `\n`;
         }

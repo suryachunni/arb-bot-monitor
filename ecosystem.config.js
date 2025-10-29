@@ -1,38 +1,38 @@
-// PM2 Configuration for Auto-Restart and Process Management
-// Run with: pm2 start ecosystem.config.js
+/**
+ * PM2 Configuration for Production Bot
+ * Ensures 24/7 uptime with auto-restart
+ */
 
 module.exports = {
   apps: [{
-    name: 'flash-arbitrage-bot',
-    script: 'dist/index-production.js',
+    name: 'flash-loan-bot',
+    script: './dist/index-production.js',
     instances: 1,
+    exec_mode: 'fork',
+    
+    // Auto-restart configuration
     autorestart: true,
     watch: false,
-    max_memory_restart: '500M',
+    max_memory_restart: '1G',
+    
+    // Restart policy
+    min_uptime: '10s',
+    max_restarts: 10,
+    restart_delay: 5000,
+    
+    // Environment
     env: {
-      NODE_ENV: 'production'
+      NODE_ENV: 'production',
     },
-    error_file: './logs/pm2-error.log',
-    out_file: './logs/pm2-out.log',
+    
+    // Logging
+    error_file: './logs/error.log',
+    out_file: './logs/output.log',
     log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
     merge_logs: true,
     
-    // Restart strategy
-    exp_backoff_restart_delay: 100,
-    max_restarts: 10,
-    min_uptime: '10s',
-    
-    // Auto-restart on crash
-    autorestart: true,
-    
-    // Graceful shutdown
+    // Advanced features
     kill_timeout: 5000,
-    listen_timeout: 3000,
-    
-    // Cron restart (optional - restart daily at 3 AM)
-    cron_restart: '0 3 * * *',
-    
-    // Monitoring
-    instance_var: 'INSTANCE_ID'
-  }]
+    listen_timeout: 10000,
+  }],
 };

@@ -1,0 +1,90 @@
+═══════════════════════════════════════════════════════════════════
+   📊 YOUR BOT - EXACT CURRENT CONFIGURATION
+═══════════════════════════════════════════════════════════════════
+
+🎯 TOKENS (6 TOTAL):
+
+1. WETH  - 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1 ⭐⭐⭐⭐⭐
+2. ARB   - 0x912CE59144191C1204E64559FE8253a0e49E6548 ⭐⭐⭐⭐⭐
+3. USDC  - 0xaf88d065e77c8cC2239327C5EDb3A432268e5831 ⭐⭐⭐⭐
+4. USDT  - 0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9 ⭐⭐⭐
+5. WBTC  - 0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f ⭐⭐⭐
+6. LINK  - 0xf97f4df75117a78c1A5a0DBb814Af92458539FB4 ⭐⭐⭐
+
+═══════════════════════════════════════════════════════════════════
+
+🔄 PAIRS SCANNED (6 TOTAL):
+
+1. WETH/ARB   ⭐⭐⭐⭐⭐ BEST (SushiSwap: $680M liquidity!)
+2. WETH/USDC  ⭐⭐⭐⭐
+3. WETH/WBTC  ⭐⭐⭐
+4. WETH/LINK  ⭐⭐⭐
+5. ARB/USDC   ⭐⭐⭐⭐
+6. WETH/USDT  ⭐⭐⭐
+
+═══════════════════════════════════════════════════════════════════
+
+🏦 DEXs CHECKED (2):
+
+1. ✅ Uniswap V3 (Primary - Best liquidity)
+2. ✅ SushiSwap (Secondary - Good backup)
+❌ Camelot (REMOVED - you were right!)
+
+═══════════════════════════════════════════════════════════════════
+
+⚙️ SCAN SETTINGS:
+
+Scan Interval: Every 10 minutes
+Test Amount: $10,000 per pair
+Min Liquidity Required: $50,000
+Min Profit to Alert: $50 (after fees)
+Minimum Spread: 0.5%
+
+═══════════════════════════════════════════════════════════════════
+
+📈 WHAT HAPPENS EACH SCAN:
+
+Every 10 minutes, your bot:
+
+1. Checks WETH/ARB on Uniswap V3 & SushiSwap
+2. Checks WETH/USDC on Uniswap V3 & SushiSwap
+3. Checks WETH/WBTC on Uniswap V3 & SushiSwap
+4. Checks WETH/LINK on Uniswap V3 & SushiSwap
+5. Checks ARB/USDC on Uniswap V3 & SushiSwap
+6. Checks WETH/USDT on Uniswap V3 & SushiSwap
+
+For each pair:
+├─ Validates liquidity (rejects if <$50k)
+├─ Gets price from both DEXs
+├─ Calculates spread
+├─ Estimates slippage
+├─ Calculates net profit (after all fees)
+└─ Sends Telegram alert if profitable
+
+═══════════════════════════════════════════════════════════════════
+
+💡 OPTIMIZATION OPTIONS:
+
+OPTION 1: Keep Current (6 pairs)
+✅ More coverage
+❌ Slower scans
+❌ More noise (low-quality pairs)
+
+OPTION 2: Optimize to TOP 3 (Recommended)
+✅ Fastest scans
+✅ Best liquidity
+✅ Most opportunities
+Pairs: WETH/ARB, WETH/USDC, ARB/USDC
+
+OPTION 3: Add MORE volatile tokens
+✅ More diversity
+❌ Slower
+Add: GMX, PENDLE
+
+═══════════════════════════════════════════════════════════════════
+
+❓ WHAT DO YOU WANT?
+
+Tell me which option or specific tokens you want!
+
+═══════════════════════════════════════════════════════════════════

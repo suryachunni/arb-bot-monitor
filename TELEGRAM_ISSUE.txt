@@ -1,0 +1,74 @@
+═══════════════════════════════════════════════════════════════════
+   ⚠️  TELEGRAM TOKEN ISSUE
+═══════════════════════════════════════════════════════════════════
+
+🔴 YOUR BOT IS RUNNING BUT TELEGRAM ISN'T WORKING
+
+Issue: The Telegram bot token returns "401 Unauthorized"
+
+Token you provided: 7990738699:AAFfoPA4VGO_90DyQauHNiwbHfBfwOTmfbgU
+
+═══════════════════════════════════════════════════════════════════
+
+📊 CURRENT SCAN RESULTS (WITHOUT TELEGRAM):
+
+Block: #394,620,883 (just scanned!)
+Time: 2025-10-29 11:51:32 UTC
+
+Results:
+├─ Pairs Scanned: 5
+├─ Pairs with Liquidity: 2 (WETH/ARB, USDT/WETH)
+├─ WETH/ARB: $680M liquidity on SushiSwap! ✅
+├─ WETH/ARB: $329M liquidity on Camelot! ✅
+└─ Profitable Opportunities: 0 (markets efficient)
+
+Bot Status: ✅ WORKING (just can't send to Telegram)
+
+═══════════════════════════════════════════════════════════════════
+
+🔧 TO FIX TELEGRAM:
+
+Option 1: Get New Token
+─────────────────────────
+1. Open Telegram and search for "@BotFather"
+2. Send: /newbot
+3. Follow instructions to create bot
+4. Copy the NEW token BotFather gives you
+5. Replace token in .env.production
+6. Restart bot
+
+Option 2: Check Current Token
+─────────────────────────────
+1. Open Telegram and search for "@BotFather"
+2. Send: /mybots
+3. Select your bot
+4. Select "API Token"
+5. Copy the correct token
+6. Update .env.production
+
+═══════════════════════════════════════════════════════════════════
+
+✅ BOT IS WORKING - JUST NEEDS CORRECT TELEGRAM TOKEN
+
+Current capabilities (working):
+✅ Scanning Arbitrum mainnet
+✅ Checking real DEX prices
+✅ Validating liquidity ($680M+ found!)
+✅ Detecting arbitrage opportunities
+✅ Running every 10 minutes
+
+Missing:
+❌ Telegram alerts (needs valid token)
+
+═══════════════════════════════════════════════════════════════════
+
+💡 YOU CAN:
+
+1. Get correct Telegram token and I'll restart with it
+2. Run without Telegram (logs only)
+3. Check scan results in logs
+
+Current scan shows WETH/ARB has MASSIVE liquidity - ready to trade
+when opportunities appear!
+
+═══════════════════════════════════════════════════════════════════

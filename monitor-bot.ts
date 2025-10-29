@@ -89,10 +89,11 @@ class MonitoringBot {
         try {
           const out = await quoter.callStatic.quoteExactInputSingle(t0.address, t1.address, fee, amount, 0);
           if (out.gt(0)) {
-            // Calculate price
+            // Calculate price: how much USD per token
+            // We're swapping USDC → TOKEN, so price = USDC in / TOKEN out
             const amountInFloat = parseFloat(ethers.utils.formatUnits(amount, t0.decimals));
             const amountOutFloat = parseFloat(ethers.utils.formatUnits(out, t1.decimals));
-            const price = amountOutFloat / amountInFloat;
+            const price = amountInFloat / amountOutFloat; // Inverted!
             
             return { success: true, amountOut: out, dex: 'Uniswap V3', fee, price };
           }
@@ -130,10 +131,11 @@ class MonitoringBot {
       const denominator = reserveIn.mul(1000).add(amountInWithFee);
       const amountOut = numerator.div(denominator);
 
-      // Calculate price
+      // Calculate price: how much USD per token
+      // We're swapping USDC → TOKEN, so price = USDC in / TOKEN out
       const amountInFloat = parseFloat(ethers.utils.formatUnits(amount, t0.decimals));
       const amountOutFloat = parseFloat(ethers.utils.formatUnits(amountOut, t1.decimals));
-      const price = amountOutFloat / amountInFloat;
+      const price = amountInFloat / amountOutFloat; // Inverted!
 
       return { success: true, amountOut, dex: dexName, liquidityUSD, price };
     } catch (e) {

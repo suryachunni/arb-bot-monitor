@@ -1,10 +1,9 @@
 import { logger } from './utils/logger';
 import { config, validateConfig } from './config/config';
 import { PriceScanner } from './services/PriceScanner';
-import { ArbitrageDetector } from './services/ArbitrageDetector';
+import { ArbitrageDetector, ArbitrageOpportunity } from './services/ArbitrageDetector';
 import { TelegramNotifier } from './services/TelegramBot';
 import { TradeExecutor } from './services/TradeExecutor';
-import { HIGH_LIQUIDITY_PAIRS } from './config/constants';
 
 class FlashLoanArbitrageBot {
   private priceScanner: PriceScanner;
@@ -39,8 +38,10 @@ class FlashLoanArbitrageBot {
 
     logger.info('✅ Bot initialized successfully');
     logger.info(`📍 Wallet: ${this.tradeExecutor.getWalletAddress()}`);
-    logger.info(`💰 Min Profit: $${config.flashLoan.minProfitUSD}`);
-    logger.info(`💵 Loan Amount: $${config.flashLoan.minLoanAmountUSD.toLocaleString()}`);
+    logger.info(`💰 Min Profit: $${config.flashLoan.minProfitUsd}`);
+    logger.info(
+      `💵 Loan Range: $${config.flashLoan.minLoanAmountUsd.toLocaleString()} - $${config.flashLoan.maxLoanAmountUsd.toLocaleString()}`
+    );
   }
 
   /**
@@ -100,10 +101,10 @@ class FlashLoanArbitrageBot {
     const startTime = Date.now();
 
     // Scan all token pairs
-    const priceData = await this.priceScanner.scanAllPairs(HIGH_LIQUIDITY_PAIRS);
+    const marketSnapshot = await this.priceScanner.scan();
     
     // Detect arbitrage opportunities
-    const opportunities = this.arbitrageDetector.detectArbitrage(priceData);
+    const opportunities = this.arbitrageDetector.detect(marketSnapshot);
     
     const scanTime = Date.now() - startTime;
     logger.info(`✅ Scan complete in ${scanTime}ms. Found ${opportunities.length} opportunities.`);
@@ -117,11 +118,11 @@ class FlashLoanArbitrageBot {
   /**
    * Process detected opportunities
    */
-  private async processOpportunities(opportunities: any[]) {
+  private async processOpportunities(opportunities: ArbitrageOpportunity[]) {
     // Get best opportunity
     const bestOpportunity = opportunities[0];
     
-    logger.info(`🎯 Best opportunity: ${bestOpportunity.profitPercentage.toFixed(3)}% profit`);
+    logger.info(`🎯 Best opportunity: ${bestOpportunity.expectedProfitUsd.toFixed(2)} USD profit (${bestOpportunity.expectedProfitPercent.toFixed(3)}%)`);
     
     // Send alert to Telegram
     await this.telegramBot.sendArbitrageAlert(bestOpportunity, this.autoExecute);
@@ -133,7 +134,7 @@ class FlashLoanArbitrageBot {
   /**
    * Execute an arbitrage opportunity
    */
-  private async executeOpportunity(opportunity: any) {
+  private async executeOpportunity(opportunity: ArbitrageOpportunity) {
     logger.info('⚡ Executing arbitrage opportunity...');
     
     try {

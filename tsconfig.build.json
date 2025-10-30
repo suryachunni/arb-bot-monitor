@@ -8,6 +8,14 @@
     "src/services/ProductionExecutor.ts",
     "src/services/ProductionPriceScanner.ts",
     "src/services/UltraFastScanner.ts",
+    "src/services/EliteScanner.ts",
+    "src/services/HyperScanner.ts",
+    "src/services/PoolReserveReader.ts",
+    "src/services/ProductionMultiDexScanner.ts",
+    "src/services/ProfessionalScanner.ts",
+    "src/services/RealDataScanner.ts",
+    "src/services/RealUniswapScanner.ts",
+    "src/services/UltimateRealScanner.ts",
     "src/index-ultra-fast.ts"
   ]
 }

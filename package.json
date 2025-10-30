@@ -4,7 +4,7 @@
   "description": "Production-grade Flash Loan Arbitrage Bot V2 for Arbitrum",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "start": "node dist/index-real-bot.js",
     "start:old": "node dist/index-production.js",
     "dev": "ts-node src/index-real-bot.ts",

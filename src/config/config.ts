@@ -2,11 +2,10 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const REQUIRED_ENV_VARS = [
+const BASE_REQUIRED_ENV_VARS = [
   'TELEGRAM_BOT_TOKEN',
   'TELEGRAM_CHAT_ID',
   'ARBITRUM_RPC_URL',
-  'PRIVATE_KEY',
 ];
 
 const numberFromEnv = (key: string, fallback: number): number => {
@@ -27,10 +26,19 @@ const boolFromEnv = (key: string, fallback: boolean = false): boolean => {
   return ['1', 'true', 'yes', 'on'].includes(raw.toLowerCase());
 };
 
+const scanOnly = boolFromEnv('SCAN_ONLY', false);
+const autoExecuteEnv = boolFromEnv('AUTO_EXECUTE', true);
+const runtimeAutoExecute = scanOnly ? false : autoExecuteEnv;
+
 export const config = {
   env: {
     nodeEnv: process.env.NODE_ENV || 'development',
     logLevel: process.env.LOG_LEVEL || 'info',
+  },
+
+  runtime: {
+    scanOnly,
+    autoExecute: runtimeAutoExecute,
   },
 
   telegram: {
@@ -88,13 +96,28 @@ export const config = {
 };
 
 export function validateConfig() {
-  const missing = REQUIRED_ENV_VARS.filter((key) => {
+  const requiredEnvVars = [...BASE_REQUIRED_ENV_VARS];
+  if (!config.runtime.scanOnly) {
+    requiredEnvVars.push('PRIVATE_KEY');
+  }
+
+  const missing = requiredEnvVars.filter((key) => {
     const value = process.env[key];
-    return !value || value.trim() === '' || value === 'your_private_key_here';
+    if (!value || value.trim() === '') {
+      return true;
+    }
+    if (key === 'PRIVATE_KEY' && value === 'your_private_key_here') {
+      return true;
+    }
+    return false;
   });
 
   if (missing.length > 0) {
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+  }
+
+  if (!config.runtime.scanOnly && !config.contract.arbitrageAddress) {
+    throw new Error('Missing required config: contract.arbitrageAddress');
   }
 
   if (config.flashLoan.minLoanAmountUsd > config.flashLoan.maxLoanAmountUsd) {

@@ -171,16 +171,27 @@ export class TelegramNotifier {
   /**
    * Send arbitrage opportunity alert
    */
-  async sendArbitrageAlert(opportunity: ArbitrageOpportunity, autoExecute: boolean = false) {
-    const message = this.formatOpportunityMessage(opportunity);
-    this.opportunityCache.set(opportunity.id, opportunity);
-    
+  async sendArbitrageAlert(
+    opportunity: ArbitrageOpportunity,
+    autoExecute: boolean = false,
+    executionEnabled: boolean = true
+  ) {
+    const baseMessage = this.formatOpportunityMessage(opportunity);
+    const message = executionEnabled
+      ? baseMessage
+      : `${baseMessage}\n\n🚫 *Execution disabled (scan-only mode).*`;
+
+    if (executionEnabled) {
+      this.opportunityCache.set(opportunity.id, opportunity);
+    } else {
+      this.opportunityCache.delete(opportunity.id);
+    }
+
     try {
-      if (autoExecute) {
+      if (executionEnabled && autoExecute) {
         // Auto-execute mode - just send notification
         await this.bot.sendMessage(this.chatId, message, { parse_mode: 'Markdown' });
-        
-        // Auto execute
+
         if (this.executeCallback) {
           await this.bot.sendMessage(
             this.chatId,
@@ -190,8 +201,7 @@ export class TelegramNotifier {
           await this.executeCallback(opportunity);
           this.opportunityCache.delete(opportunity.id);
         }
-      } else {
-        // Manual confirmation mode
+      } else if (executionEnabled) {
         const keyboard = {
           inline_keyboard: [
             [
@@ -206,11 +216,13 @@ export class TelegramNotifier {
             ],
           ],
         };
-        
+
         await this.bot.sendMessage(this.chatId, message, {
           parse_mode: 'Markdown',
           reply_markup: keyboard,
         });
+      } else {
+        await this.bot.sendMessage(this.chatId, message, { parse_mode: 'Markdown' });
       }
     } catch (error) {
       logger.error('Failed to send arbitrage alert:', error);

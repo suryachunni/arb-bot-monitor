@@ -10,6 +10,7 @@
     "start:dev": "ts-node src/index-production.ts",
     "start:scan": "ts-node src/index-scan-only.ts",
     "start:fixed": "ts-node src/index-fixed.ts",
+    "start:pro": "ts-node src/index-professional.ts",
     "compile": "npx hardhat compile",
     "clean": "npx hardhat clean && rm -rf dist",
     "test": "npx hardhat test",

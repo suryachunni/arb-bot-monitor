@@ -11,6 +11,7 @@ export class TelegramNotifier {
   private stopBotCallback?: () => void;
   private pauseBotCallback?: () => void;
   private resumeBotCallback?: () => void;
+  private opportunityCache: Map<string, ArbitrageOpportunity> = new Map();
 
   constructor() {
     this.bot = new TelegramBot(config.telegram.botToken, { polling: true });
@@ -86,22 +87,31 @@ export class TelegramNotifier {
       const data = query.data;
       
       if (data?.startsWith('execute_')) {
-        const opportunityJson = data.replace('execute_', '');
+        const opportunityId = data.replace('execute_', '');
+        const opportunity = this.opportunityCache.get(opportunityId);
+
+        if (!opportunity) {
+          await this.bot.answerCallbackQuery(query.id, {
+            text: 'Opportunity expired',
+            show_alert: true,
+          });
+          return;
+        }
+
         try {
-          const opportunity = JSON.parse(decodeURIComponent(opportunityJson));
-          
           await this.bot.answerCallbackQuery(query.id, {
             text: '⚡ Executing trade...',
           });
-          
+
           await this.bot.sendMessage(
             query.message!.chat.id,
-            '⚡ *Trade Execution Started*\n\nExecuting flash loan arbitrage...',
+            '⚡ *Trade Execution Started*\n\nExecuting flash-loan arbitrage...',
             { parse_mode: 'Markdown' }
           );
-          
+
           if (this.executeCallback) {
             await this.executeCallback(opportunity);
+            this.opportunityCache.delete(opportunity.id);
           }
         } catch (error) {
           logger.error('Error executing trade from Telegram:', error);
@@ -161,15 +171,27 @@ export class TelegramNotifier {
   /**
    * Send arbitrage opportunity alert
    */
-  async sendArbitrageAlert(opportunity: ArbitrageOpportunity, autoExecute: boolean = false) {
-    const message = this.formatOpportunityMessage(opportunity);
-    
+  async sendArbitrageAlert(
+    opportunity: ArbitrageOpportunity,
+    autoExecute: boolean = false,
+    executionEnabled: boolean = true
+  ) {
+    const baseMessage = this.formatOpportunityMessage(opportunity);
+    const message = executionEnabled
+      ? baseMessage
+      : `${baseMessage}\n\n🚫 *Execution disabled (scan-only mode).*`;
+
+    if (executionEnabled) {
+      this.opportunityCache.set(opportunity.id, opportunity);
+    } else {
+      this.opportunityCache.delete(opportunity.id);
+    }
+
     try {
-      if (autoExecute) {
+      if (executionEnabled && autoExecute) {
         // Auto-execute mode - just send notification
         await this.bot.sendMessage(this.chatId, message, { parse_mode: 'Markdown' });
-        
-        // Auto execute
+
         if (this.executeCallback) {
           await this.bot.sendMessage(
             this.chatId,
@@ -177,15 +199,15 @@ export class TelegramNotifier {
             { parse_mode: 'Markdown' }
           );
           await this.executeCallback(opportunity);
+          this.opportunityCache.delete(opportunity.id);
         }
-      } else {
-        // Manual confirmation mode
+      } else if (executionEnabled) {
         const keyboard = {
           inline_keyboard: [
             [
               {
                 text: '✅ Execute Trade',
-                callback_data: `execute_${encodeURIComponent(JSON.stringify(opportunity))}`,
+                callback_data: `execute_${opportunity.id}`,
               },
               {
                 text: '❌ Cancel',
@@ -194,11 +216,13 @@ export class TelegramNotifier {
             ],
           ],
         };
-        
+
         await this.bot.sendMessage(this.chatId, message, {
           parse_mode: 'Markdown',
           reply_markup: keyboard,
         });
+      } else {
+        await this.bot.sendMessage(this.chatId, message, { parse_mode: 'Markdown' });
       }
     } catch (error) {
       logger.error('Failed to send arbitrage alert:', error);
@@ -209,27 +233,32 @@ export class TelegramNotifier {
    * Format opportunity message
    */
   private formatOpportunityMessage(opp: ArbitrageOpportunity): string {
-    const direction = opp.direction === 'AtoB' 
-      ? `${opp.tokenA} → ${opp.tokenB}`
-      : `${opp.tokenB} → ${opp.tokenA}`;
-    
+    const legsDescription = opp.legs
+      .map((leg, idx) => {
+        const feePercent = leg.feeBps ? (leg.feeBps / 100).toFixed(2) : '0.00';
+        return `L${idx + 1}. ${leg.dex}: ${leg.fromToken.symbol} → ${leg.toToken.symbol} (fee ${feePercent}%)`;
+      })
+      .join('\n');
+
     return (
       `🎯 *ARBITRAGE OPPORTUNITY DETECTED!*\n\n` +
-      `💱 *Pair:* ${opp.tokenA}/${opp.tokenB}\n` +
-      `📊 *Direction:* ${direction}\n\n` +
-      `🔵 *Buy on:* ${opp.buyDex}\n` +
-      `💰 *Buy Price:* ${opp.buyPrice.toFixed(6)}\n` +
-      `${opp.buyFee ? `⚡ Fee Tier: ${opp.buyFee / 10000}%\n` : ''}` +
-      `\n` +
-      `🔴 *Sell on:* ${opp.sellDex}\n` +
-      `💰 *Sell Price:* ${opp.sellPrice.toFixed(6)}\n` +
-      `${opp.sellFee ? `⚡ Fee Tier: ${opp.sellFee / 10000}%\n` : ''}` +
-      `\n` +
-      `📈 *Profit:* ${opp.profitPercentage.toFixed(3)}%\n` +
-      `💵 *Est. Profit (USD):* $${opp.estimatedProfitUSD.toFixed(2)}\n` +
-      `⏰ *Timestamp:* ${new Date(opp.timestamp).toLocaleString()}\n\n` +
-      `⚡ Ready to execute flash loan arbitrage!`
+      `${this.renderPath(opp)}\n\n` +
+      `🔗 *Type:* ${opp.type}\n` +
+      `🪙 *Loan Token:* ${opp.borrowToken.symbol} (${opp.borrowAmountHuman.toFixed(4)})\n` +
+      `💲 *Loan Token Price:* $${opp.borrowTokenUsd.toFixed(4)}\n` +
+      `💵 *Notional:* $${opp.notionalUsd.toFixed(2)}\n` +
+      `📈 *Net Profit:* $${opp.expectedProfitUsd.toFixed(2)} (${opp.expectedProfitPercent.toFixed(3)}%)\n` +
+      `⛽ *Gas Estimate:* ~$${opp.gasCostUsdEstimate.toFixed(2)}\n` +
+      `🧊 *Liquidity Cap:* $${opp.liquidityCapUsd.toFixed(2)}\n` +
+      `🕒 *Detected:* ${new Date(opp.blockTimestamp).toLocaleTimeString()}\n\n` +
+      `📚 *Route Details:*\n${legsDescription}\n\n` +
+      `⚡ Ready to execute flash-loan arbitrage!`
     );
+  }
+
+  private renderPath(opp: ArbitrageOpportunity): string {
+    const symbols = opp.path.map((token) => token.symbol).join(' → ');
+    return `🛣️ *Path:* ${symbols}`;
   }
 
   /**
@@ -272,10 +301,10 @@ export class TelegramNotifier {
       `✅ Status: Running\n` +
       `🌐 Network: Arbitrum\n` +
       `⏱️ Scan Interval: ${config.monitoring.scanIntervalMs / 1000}s\n` +
-      `💰 Min Profit: $${config.flashLoan.minProfitUSD}\n` +
-      `💵 Loan Amount: $${config.flashLoan.minLoanAmountUSD.toLocaleString()}\n` +
-      `⛽ Max Gas Price: ${config.flashLoan.maxGasPriceGwei} gwei\n` +
-      `📈 Max Slippage: ${config.monitoring.maxSlippagePercent}%\n\n` +
+      `💰 Min Profit: $${config.flashLoan.minProfitUsd}\n` +
+      `💵 Loan Range: $${config.flashLoan.minLoanAmountUsd.toLocaleString()} - $${config.flashLoan.maxLoanAmountUsd.toLocaleString()}\n` +
+      `⛽ Max Gas Price: ${config.execution.maxGasPriceGwei} gwei\n` +
+      `📈 Max Slippage: ${config.execution.maxSlippagePercent}%\n\n` +
       `🔍 Actively scanning for opportunities...`
     );
     

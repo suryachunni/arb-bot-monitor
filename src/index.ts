@@ -1,19 +1,19 @@
 import { logger } from './utils/logger';
 import { config, validateConfig } from './config/config';
 import { PriceScanner } from './services/PriceScanner';
-import { ArbitrageDetector } from './services/ArbitrageDetector';
+import { ArbitrageDetector, ArbitrageOpportunity } from './services/ArbitrageDetector';
 import { TelegramNotifier } from './services/TelegramBot';
 import { TradeExecutor } from './services/TradeExecutor';
-import { HIGH_LIQUIDITY_PAIRS } from './config/constants';
 
 class FlashLoanArbitrageBot {
   private priceScanner: PriceScanner;
   private arbitrageDetector: ArbitrageDetector;
   private telegramBot: TelegramNotifier;
-  private tradeExecutor: TradeExecutor;
+  private tradeExecutor: TradeExecutor | null = null;
   private isRunning: boolean = false;
   private scanInterval: NodeJS.Timeout | null = null;
-  private autoExecute: boolean = true; // Set to true for fully automated execution
+  private autoExecute: boolean;
+  private readonly scanOnly: boolean;
 
   constructor() {
     logger.info('🚀 Initializing Flash Loan Arbitrage Bot...');
@@ -26,21 +26,36 @@ class FlashLoanArbitrageBot {
       process.exit(1);
     }
 
+    this.scanOnly = config.runtime.scanOnly;
+    this.autoExecute = this.scanOnly ? false : config.runtime.autoExecute;
+
     // Initialize services
     this.priceScanner = new PriceScanner();
     this.arbitrageDetector = new ArbitrageDetector();
     this.telegramBot = new TelegramNotifier();
-    this.tradeExecutor = new TradeExecutor(this.priceScanner);
 
-    // Register trade execution callback
-    this.telegramBot.onExecute(async (opportunity) => {
-      await this.executeOpportunity(opportunity);
-    });
+    if (!this.scanOnly) {
+      this.tradeExecutor = new TradeExecutor(this.priceScanner);
+
+      // Register trade execution callback
+      this.telegramBot.onExecute(async (opportunity) => {
+        await this.executeOpportunity(opportunity);
+      });
+
+      logger.info(`📍 Wallet: ${this.tradeExecutor.getWalletAddress()}`);
+    } else {
+      logger.info('🔒 Scan-only mode enabled. Trades will not execute.');
+      void this.telegramBot.sendMessage(
+        '🛰️ *Scan-only mode enabled.*\n\nThe bot will stream live opportunities without executing trades.'
+      );
+    }
 
     logger.info('✅ Bot initialized successfully');
-    logger.info(`📍 Wallet: ${this.tradeExecutor.getWalletAddress()}`);
-    logger.info(`💰 Min Profit: $${config.flashLoan.minProfitUSD}`);
-    logger.info(`💵 Loan Amount: $${config.flashLoan.minLoanAmountUSD.toLocaleString()}`);
+    logger.info(`💰 Min Profit: $${config.flashLoan.minProfitUsd}`);
+    logger.info(
+      `💵 Loan Range: $${config.flashLoan.minLoanAmountUsd.toLocaleString()} - $${config.flashLoan.maxLoanAmountUsd.toLocaleString()}`
+    );
+    logger.info(`⚙️ Auto Execute: ${this.autoExecute ? 'enabled' : 'disabled'}`);
   }
 
   /**
@@ -55,15 +70,19 @@ class FlashLoanArbitrageBot {
     logger.info('🎬 Starting arbitrage bot...');
     this.isRunning = true;
 
-    // Check wallet balance
-    const balance = await this.tradeExecutor.checkBalance();
-    logger.info(`💰 Wallet Balance: ${balance.eth} ETH ($${balance.ethValue.toFixed(2)})`);
-    
-    if (balance.ethValue < 0.01) {
-      logger.warn('⚠️  Low ETH balance. Make sure you have enough for gas fees!');
-      await this.telegramBot.sendMessage(
-        '⚠️ *Warning*: Low ETH balance. Please add funds for gas fees.'
-      );
+    if (this.tradeExecutor) {
+      // Check wallet balance
+      const balance = await this.tradeExecutor.checkBalance();
+      logger.info(`💰 Wallet Balance: ${balance.eth} ETH ($${balance.ethValue.toFixed(2)})`);
+
+      if (balance.ethValue < 0.01) {
+        logger.warn('⚠️  Low ETH balance. Make sure you have enough for gas fees!');
+        await this.telegramBot.sendMessage(
+          '⚠️ *Warning*: Low ETH balance. Please add funds for gas fees.'
+        );
+      }
+    } else {
+      logger.info('🔍 Scan-only mode: skipping wallet balance checks.');
     }
 
     // Start scanning loop
@@ -100,10 +119,10 @@ class FlashLoanArbitrageBot {
     const startTime = Date.now();
 
     // Scan all token pairs
-    const priceData = await this.priceScanner.scanAllPairs(HIGH_LIQUIDITY_PAIRS);
+    const marketSnapshot = await this.priceScanner.scan();
     
     // Detect arbitrage opportunities
-    const opportunities = this.arbitrageDetector.detectArbitrage(priceData);
+    const opportunities = this.arbitrageDetector.detect(marketSnapshot);
     
     const scanTime = Date.now() - startTime;
     logger.info(`✅ Scan complete in ${scanTime}ms. Found ${opportunities.length} opportunities.`);
@@ -117,14 +136,15 @@ class FlashLoanArbitrageBot {
   /**
    * Process detected opportunities
    */
-  private async processOpportunities(opportunities: any[]) {
+  private async processOpportunities(opportunities: ArbitrageOpportunity[]) {
     // Get best opportunity
     const bestOpportunity = opportunities[0];
     
-    logger.info(`🎯 Best opportunity: ${bestOpportunity.profitPercentage.toFixed(3)}% profit`);
+    logger.info(`🎯 Best opportunity: ${bestOpportunity.expectedProfitUsd.toFixed(2)} USD profit (${bestOpportunity.expectedProfitPercent.toFixed(3)}%)`);
     
     // Send alert to Telegram
-    await this.telegramBot.sendArbitrageAlert(bestOpportunity, this.autoExecute);
+    const executionEnabled = !!this.tradeExecutor && !this.scanOnly;
+    await this.telegramBot.sendArbitrageAlert(bestOpportunity, this.autoExecute, executionEnabled);
     
     // If auto-execute is disabled, wait for manual confirmation via Telegram
     // The callback will handle execution
@@ -133,9 +153,20 @@ class FlashLoanArbitrageBot {
   /**
    * Execute an arbitrage opportunity
    */
-  private async executeOpportunity(opportunity: any) {
+  private async executeOpportunity(opportunity: ArbitrageOpportunity) {
     logger.info('⚡ Executing arbitrage opportunity...');
     
+    if (!this.tradeExecutor) {
+      logger.warn('Trade execution attempted while executor is unavailable (scan-only mode).');
+      await this.telegramBot.sendExecutionResult(
+        false,
+        undefined,
+        undefined,
+        'Execution disabled: scan-only mode is active.'
+      );
+      return;
+    }
+
     try {
       const result = await this.tradeExecutor.executeArbitrage(opportunity);
       

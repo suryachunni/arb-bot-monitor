@@ -58,7 +58,7 @@ export class ProfessionalPriceOracle {
   private provider: ethers.providers.JsonRpcProvider;
   private quoter: ethers.Contract;
   private factory: ethers.Contract;
-  private minLiquidityUSD = 10000; // $10k minimum (lowered to show more pools)
+  private minLiquidityUSD = 1000; // $1k minimum (show most active pools)
 
   constructor(provider: ethers.providers.JsonRpcProvider) {
     this.provider = provider;

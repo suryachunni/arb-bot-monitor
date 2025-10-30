@@ -18,9 +18,13 @@ const priceOracle = new ProfessionalPriceOracle(provider);
 // Token pairs with USD prices for profit calculations
 const PAIRS = [
   { tokenA: TOKENS.WETH, tokenB: TOKENS.USDC, symbolA: 'WETH', symbolB: 'USDC', decimalsA: 18, decimalsB: 6, tokenAPrice: 3895 },
+  { tokenA: TOKENS.WETH, tokenB: TOKENS.USDT, symbolA: 'WETH', symbolB: 'USDT', decimalsA: 18, decimalsB: 6, tokenAPrice: 3895 },
   { tokenA: TOKENS.ARB, tokenB: TOKENS.USDC, symbolA: 'ARB', symbolB: 'USDC', decimalsA: 18, decimalsB: 6, tokenAPrice: 0.31 },
+  { tokenA: TOKENS.WBTC, tokenB: TOKENS.USDC, symbolA: 'WBTC', symbolB: 'USDC', decimalsA: 8, decimalsB: 6, tokenAPrice: 70000 },
   { tokenA: TOKENS.LINK, tokenB: TOKENS.USDC, symbolA: 'LINK', symbolB: 'USDC', decimalsA: 18, decimalsB: 6, tokenAPrice: 17.15 },
+  { tokenA: TOKENS.UNI, tokenB: TOKENS.USDC, symbolA: 'UNI', symbolB: 'USDC', decimalsA: 18, decimalsB: 6, tokenAPrice: 10.50 },
   { tokenA: TOKENS.GMX, tokenB: TOKENS.USDC, symbolA: 'GMX', symbolB: 'USDC', decimalsA: 18, decimalsB: 6, tokenAPrice: 9.88 },
+  { tokenA: TOKENS.USDC, tokenB: TOKENS.USDT, symbolA: 'USDC', symbolB: 'USDT', decimalsA: 6, decimalsB: 6, tokenAPrice: 1 },
 ];
 
 let scanCount = 0;

@@ -13,14 +13,50 @@ export class FlashbotsProvider {
   private wallet: ethers.Wallet;
   private flashbotsRpc: string;
   
-  constructor(rpcUrl: string, privateKey: string) {
-    this.provider = new ethers.providers.JsonRpcProvider(rpcUrl);
-    this.wallet = new ethers.Wallet(privateKey, this.provider);
+  constructor(provider: ethers.providers.JsonRpcProvider, wallet: ethers.Wallet) {
+    this.provider = provider;
+    this.wallet = wallet;
     
     // Flashbots RPC for Ethereum, for Arbitrum we use increased priority fees
     this.flashbotsRpc = process.env.FLASHBOTS_RPC || 'https://rpc.flashbots.net';
     
     logger.info('🛡️ Flashbots MEV protection initialized');
+  }
+  
+  /**
+   * Send private transaction with MEV protection
+   */
+  async sendPrivateTransaction(
+    tx: ethers.providers.TransactionRequest,
+    targetBlock: number
+  ): Promise<{ success: boolean; txHash?: string; error?: string }> {
+    try {
+      // For Arbitrum, MEV protection = high priority fee + fast submission
+      const feeData = await this.provider.getFeeData();
+      
+      // Boost priority fee by 50% to beat MEV bots
+      if (feeData.maxFeePerGas && feeData.maxPriorityFeePerGas) {
+        tx.maxFeePerGas = feeData.maxFeePerGas.mul(150).div(100);
+        tx.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas.mul(200).div(100); // 2x priority!
+      }
+      
+      // Send transaction
+      const txResponse = await this.wallet.sendTransaction(tx);
+      
+      logger.info(`🛡️ Private tx sent: ${txResponse.hash} (boosted priority fee)`);
+      
+      return {
+        success: true,
+        txHash: txResponse.hash,
+      };
+      
+    } catch (error: any) {
+      logger.error(`❌ Failed to send private transaction: ${error.message}`);
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
   }
   
   /**
